@@ -50,6 +50,7 @@ type StreamHub struct {
 	streams_playing       bool
 	player_by_idx         map[int]*Player
 	idx_by_player         map[*Player]int
+	ctl_closed            map[*Player]bool
 	restart_pending       map[int]bool
 
 	pipe_prefix           string
@@ -73,6 +74,7 @@ func NewStreamHub() *StreamHub {
 
 		player_by_idx       : make(map[int]*Player),
 		idx_by_player       : make(map[*Player]int),
+		ctl_closed          : make(map[*Player]bool),
 		restart_pending		: make(map[int]bool),
 	}
 	if runtime.GOOS == "windows" {

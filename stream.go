@@ -14,6 +14,7 @@ func stream_status(hub *StreamHub, idx int, status *PlayerStatus) {
 		// do postponed player deletion
 		delete(hub.idx_by_player, player)
 		delete(hub.player_by_idx, idx)
+		delete(hub.ctl_closed, player)
 		if hub.restart_pending[idx] {
 			stream_start(hub, idx)
 		}
@@ -51,7 +52,10 @@ func stream_ctl(hub *StreamHub, idx int, ctl string, value interface{}) {
 func stream_stop(hub *StreamHub, idx int) {
 	player := hub.player_by_idx[idx]
 	if player != nil {
-		close(player.Control)
+		if !hub.ctl_closed[player] { /* prevent ditch from crashing things by spamming stop/(re)start buttons */
+			hub.ctl_closed[player] = true
+			close(player.Control)
+		}
 	}
 	hub.restart_pending[idx] = false
 	//fmt.Println("stream_stop", player)
