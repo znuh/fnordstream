@@ -1,0 +1,163 @@
+package main
+
+import (
+	"fmt"
+	"time"
+	"runtime"
+	"strconv"
+)
+
+type Client struct {
+	shub            *StreamHub
+	client_notify    chan []byte
+	client_request   chan map[string]interface{}
+}
+
+type ClientRequest struct {
+	src               *Client
+	//dst             *Player
+	request            map[string]interface{}
+	// TODO: original JSON message?
+}
+
+type Notification struct {
+	dst               *Client
+	src               *Player
+
+	notification       string
+	payload            interface{}
+
+	json_message     []byte
+}
+
+type StreamHub struct {
+	// register/unregister channels for clients
+	Register              chan *Client
+	Unregister            chan *Client
+
+	// registered clients
+	clients               map[*Client]bool
+
+	client_requests       chan *ClientRequest     // channel holding multiplexed requests of all clients (fan-in)
+	notifications         chan *Notification      // channel holding multiplexed notifications for all clients (fan-out)
+
+	/* streams stuff */
+	displays            []Display
+	viewports           []Geometry
+	stream_locations    []string
+	playback_options      map[string]bool
+
+	streams_playing       bool
+	player_by_idx         map[int]*Player
+	idx_by_player         map[*Player]int
+	restart_pending       map[int]bool
+
+	pipe_prefix           string
+	restart_error_delay   time.Duration
+
+	stream_profiles       map[string]interface{}
+}
+
+func NewStreamHub() *StreamHub {
+	shub := &StreamHub{
+		Register            : make(chan *Client),
+		Unregister          : make(chan *Client),
+
+		clients             : make(map[*Client]bool),
+		client_requests     : make(chan *ClientRequest, 64),
+		notifications       : make(chan *Notification, 64),
+
+		displays            : displays_detect(),
+		pipe_prefix         : "/tmp/nstream_mpv_ipc",
+		restart_error_delay : 1*time.Second,
+
+		player_by_idx       : make(map[int]*Player),
+		idx_by_player       : make(map[*Player]int),
+		restart_pending		: make(map[int]bool),
+	}
+	if runtime.GOOS == "windows" {
+		shub.pipe_prefix = "\\\\.\\pipe\\nstream_mpv_ipc"
+	}
+	shub.stream_profiles = map[string]interface{} {}
+	load_json("stream_profiles.json", &shub.stream_profiles)
+	return shub
+}
+
+func mux_client(hub *StreamHub, client *Client) {
+	for {
+		msg, ok := <- client.client_request
+		//fmt.Println("mux_client",ok,msg)
+		if !ok { break }
+		hub.client_requests <- &ClientRequest{src : client, request: msg}
+	}
+	fmt.Println("mux_client done")
+}
+
+func try_forward(client *Client, message []byte) {
+	select {
+		case client.client_notify <- message:
+		default:
+			/* client channel full - drop message */
+	}
+}
+
+/* Responses to individual clients (non-broadcast) are also sent through the 
+ * client_notifies channel of the hub and forwarded to the client by StreamHub.Run()
+ * The benefit of this approach is that writes to the client notify channel and 
+ * closing this channel only happen in StreamHub.Run().
+ * 
+ * Therefor client_request() may start go routines to handle certain requests
+ * and send the response via the multiplexed client_notifies channel of the StreamHub. */
+func (hub * StreamHub) Run() {
+	for {
+		select {
+
+			/* client register */
+			case client := <-hub.Register:
+				//fmt.Println("register client")
+				hub.clients[client] = true
+				go mux_client(hub, client)
+
+			/* client unregister */
+			case client := <-hub.Unregister:
+				if _, ok := hub.clients[client]; ok {
+					delete(hub.clients, client)
+					if client.client_notify != nil {
+						close(client.client_notify)
+					}
+				}
+
+			/* client requests - includes client -> player messages */
+			case req := <-hub.client_requests:
+				client_request(hub, req)
+
+			/* messages to clients - includes player -> client messages */
+			case note := <-hub.notifications:
+				player       := note.src
+				client       := note.dst
+				json_message := note.json_message
+
+				// prepend JSON data with note type and stream_id
+				if player != nil {
+					idx, ok := hub.idx_by_player[player]
+					//fmt.Println("idx ",idx, ok);
+					if !ok { break } // drop message if player no longer exists
+					prepend          := `{"notification":"`+note.notification+`","stream_idx":`+strconv.Itoa(idx)+`,"payload":`
+					str              := prepend + string(json_message) + "}"
+					json_message      = []byte(str)
+					note.json_message = json_message
+				}
+
+				/* watch notification and follow certain state/value changes */
+				notification(hub, note)
+
+				if client == nil {                             /* broadcast to all clients */
+					for client := range hub.clients {
+						try_forward(client, json_message)
+					}
+				} else if _, ok := hub.clients[client]; ok {    /* single client only */
+					try_forward(client, json_message)
+				}
+		} /* select */
+	} /* for */
+}
