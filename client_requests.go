@@ -231,16 +231,19 @@ func delete_profile(hub *StreamHub, client *Client, request map[string]interface
 }
 
 func probe_commands(hub *StreamHub, client *Client, request map[string]interface {}) {
-	commands := []string{ "mpv", "yt-dlp", "streamlink" }
+	cmd_info := map[string]*CmdInfo{
+		"mpv"        : nil,
+		"yt-dlp"     : nil,
+		"streamlink" : nil,
+	}
 	if runtime.GOOS == "linux" {
-		commands = append(commands, "xrandr")
+		cmd_info["xrandr"] = nil
 	}
 	go func(){
-		commands_info := []CmdInfo{}
-		for _, cmd := range commands {
-			commands_info = append(commands_info, probe_command(cmd))
+		for cmd, _ := range cmd_info {
+			cmd_info[cmd] = probe_command(cmd)
 		}
-		send_response(hub.notifications, client, "probe_commands", commands_info)
+		send_response(hub.notifications, client, "probe_commands", cmd_info)
 	}()
 }
 

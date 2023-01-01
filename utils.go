@@ -34,18 +34,16 @@ func save_json(fname string, src map[string]interface{}) {
 }
 
 type CmdInfo struct {
-	Command    string  `json:"cmd" mapstructure:"cmd"`
 	ExitCode   int     `json:"exit_code" mapstructure:"exit_code"`
 	Stdout     string  `json:"stdout,omitempty" mapstructure:"stdout"`
 	Error      string  `json:"error,omitempty" mapstructure:"error"`
 }
 
-func probe_command(command string) CmdInfo {
+func probe_command(command string) *CmdInfo {
 	ctx    := cmd.NewCmd(command, "--version")
 	status := <-ctx.Start()
 
-	res := CmdInfo{
-		Command  : command,
+	res := &CmdInfo{
 		ExitCode : status.Exit,
 	}
 	if status.Error != nil {
