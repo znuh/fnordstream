@@ -635,13 +635,89 @@ function global_status(msg) {
 	streams_playing(status.playing);
 }
 
-function commands_probed(msg) {
-	const results = msg.payload;
+function mklink(ref) {
+	const refs = {
+		"mpv"        : "https://mpv.io/installation/",
+		"yt-dlp"     : "https://github.com/yt-dlp/yt-dlp#installation",
+		"streamlink" : "https://streamlink.github.io/install.html",
+		"xrandr"     : "https://xorg-team.pages.debian.net/xorg/howto/use-xrandr.html",
+	};
+	return refs[ref] ? ('<a href="'+refs[ref]+'">'+ref+'</a>') : ref;
+}
 
+function commands_probed(msg) {
+	const required_commands = {
+		"mpv"        : true,
+		"yt-dlp"     : true,
+	};
+	const results = msg.payload;
 	if ((!results) || (results.length < 1))
 		return;
-	// TBD
-	//console.log(results);
+
+	/* disable/enable use_streamlink switch */
+	const use_streamlink = document.getElementById('use_streamlink');
+	use_streamlink.disabled = results["streamlink"].exit_code != 0;
+	const streamlink_note = document.getElementById('streamlink_note');
+	streamlink_note.textContent = (results["streamlink"].exit_code != 0) ?
+		"No working streamlink found." : "";
+
+	/* walk through list to check mandatory & optional commands */
+	let missing_required = "";
+	let missing_optional = "";
+	Object.keys(results).forEach(function(cmd, index) {
+		const v = results[cmd];
+		if (required_commands[cmd]) {
+			if (v.exit_code != 0)
+				missing_required += ", " + mklink(cmd);
+		} else {
+			if (v.exit_code != 0)
+				missing_optional += ", " + mklink(cmd);
+		}
+		//console.log(cmd, v);
+	});
+	missing_required = missing_required.substring(2);
+	missing_optional = missing_optional.substring(2);
+
+	/* build status note */
+	const cmd_missing_alert = document.getElementById('cmd_missing_alert');
+	const alert = (message, type) => {
+	  const wrapper = document.createElement('div');
+	  wrapper.innerHTML = [
+		`<div class="alert alert-${type}" role="alert">`,
+		`   <div>${message}</div>`,
+		'   <button type="button" class="btn btn-secondary btn-sm" id="commands_refresh"><i class="bi bi-arrow-clockwise"></i>&nbsp;Refresh</button>',
+		'   <button type="button" class="btn btn-secondary btn-sm" id="commands_details" disabled><i class="bi bi-list-columns-reverse"></i>&nbsp;Details</button>',
+		'</div>'
+	  ].join('');
+	  cmd_missing_alert.replaceChildren(wrapper);
+	}
+	let alert_type = 'success';
+	let alert_msg = "All required &amp; optional commands found.";
+	if (missing_required.length > 0) {
+		alert_type = 'danger';
+		alert_msg = "<b>Required commands failed: " + missing_required + "</b><br>";
+	}
+	if (missing_optional.length > 0) {
+		if (alert_type == "success") {
+			alert_type = 'warning';
+			alert_msg = "Optional commands failed: " + missing_optional;
+		}
+		else
+			alert_msg += "Optional commands failed: " + missing_optional;
+	}
+	alert(alert_msg, alert_type);
+
+	/* button handlers for status note */
+	const commands_refresh = document.getElementById('commands_refresh');
+	commands_refresh.addEventListener('click', (event) => {
+	  if(ws)
+		ws.send(JSON.stringify({request : "probe_commands"}));
+	})
+
+	const commands_details = document.getElementById('commands_details');
+	commands_details.addEventListener('click', (event) => {
+	  console.log("TBD: command_details https://getbootstrap.com/docs/5.2/components/modal/#scrolling-long-content");
+	})
 }
 
 function profiles_notification(msg) {
