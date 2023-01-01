@@ -635,18 +635,28 @@ function global_status(msg) {
 	streams_playing(status.playing);
 }
 
+function commands_probed(msg) {
+	const results = msg.payload;
+
+	if ((!results) || (results.length < 1))
+		return;
+	// TBD
+	//console.log(results);
+}
+
 function profiles_notification(msg) {
 	const profiles = msg.payload;
 	update_stream_profiles(profiles);
 }
 
 const ws_handlers = {
-	"global_status" : global_status,
-	"profiles"      : profiles_notification,
-	"displays"      : displays_notification,
-	"viewports"     : viewports_notification,
-	"player_event"  : player_event,
-	"player_status" : player_status,
+	"global_status"  : global_status,
+	"probe_commands" : commands_probed,
+	"profiles"       : profiles_notification,
+	"displays"       : displays_notification,
+	"viewports"      : viewports_notification,
+	"player_event"   : player_event,
+	"player_status"  : player_status,
 };
 
 function ws_rx(evt) {
@@ -674,7 +684,11 @@ document.addEventListener("DOMContentLoaded", function() {
   
   websock.addEventListener('open', (event) => {
 	ws = websock;
-	ws.send(JSON.stringify({request : "global_status"})+JSON.stringify({request : "get_profiles"}));
+	ws.send(
+		JSON.stringify({request : "global_status"})+
+		JSON.stringify({request : "get_profiles"})+
+		JSON.stringify({request : "probe_commands"})
+		);
     document.getElementById('refresh_displays').dispatchEvent(new Event("click"));
     document.getElementById('stream_urls').dispatchEvent(new Event("input"));
     console.log("websock opened");

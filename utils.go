@@ -2,8 +2,11 @@ package main
 
 import (
 	"log"
+	"strings"
 	"io/ioutil"
 	"encoding/json"
+
+	"github.com/go-cmd/cmd"
 )
 
 func load_json(fname string, dst *map[string]interface{}) {
@@ -28,4 +31,28 @@ func save_json(fname string, src map[string]interface{}) {
 	if err != nil {
 		log.Println(err)
 	}
+}
+
+type CmdInfo struct {
+	Command    string  `json:"cmd" mapstructure:"cmd"`
+	ExitCode   int     `json:"exit_code" mapstructure:"exit_code"`
+	Stdout     string  `json:"stdout,omitempty" mapstructure:"stdout"`
+	Error      string  `json:"error,omitempty" mapstructure:"error"`
+}
+
+func probe_command(command string) CmdInfo {
+	ctx    := cmd.NewCmd(command, "--version")
+	status := <-ctx.Start()
+
+	res := CmdInfo{
+		Command  : command,
+		ExitCode : status.Exit,
+	}
+	if status.Error != nil {
+		res.Error = status.Error.Error()
+	}
+	if len(status.Stdout) > 0 {
+		res.Stdout = strings.Join(status.Stdout, "\n")
+	}
+    return res
 }

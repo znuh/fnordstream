@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"runtime"
 	"encoding/json"
 	"github.com/mitchellh/mapstructure"
 )
@@ -229,10 +230,25 @@ func delete_profile(hub *StreamHub, client *Client, request map[string]interface
 	save_json("stream_profiles.json", hub.stream_profiles)
 }
 
+func probe_commands(hub *StreamHub, client *Client, request map[string]interface {}) {
+	commands := []string{ "mpv", "yt-dlp", "streamlink" }
+	if runtime.GOOS == "linux" {
+		commands = append(commands, "xrandr")
+	}
+	go func(){
+		commands_info := []CmdInfo{}
+		for _, cmd := range commands {
+			commands_info = append(commands_info, probe_command(cmd))
+		}
+		send_response(hub.notifications, client, "probe_commands", commands_info)
+	}()
+}
+
 /* handlers are executed in StreamHub.Run() context
  * may access & modify StreamHub XOR start gogoutines as needed */
 var req_handlers = map[string]RequestHandler{
 	"global_status"      : global_status,
+	"probe_commands"     : probe_commands,
 
 	"get_profiles"       : get_profiles,
 	"profile_save"       : save_profile,
