@@ -692,6 +692,8 @@ function populate_cmds_table(cmds) {
 	}
 }
 
+let cmd_modal = undefined;
+
 function commands_probed(msg) {
 
 	const results = msg.payload;
@@ -755,16 +757,34 @@ function commands_probed(msg) {
 	/* button handlers for status note */
 	const commands_refresh = document.getElementById('commands_refresh');
 	commands_refresh.disabled = false;
-	commands_refresh.addEventListener('click', (event) => refresh_cmds());
+	if (!commands_refresh.getAttribute('click_attached')) {
+		commands_refresh.addEventListener('click', refresh_cmds);
+		commands_refresh.setAttribute('click_attached', 'true');
+	}
 
 	const commands_refresh2 = document.getElementById('commands_refresh2');
 	commands_refresh2.disabled = false;
-	commands_refresh2.addEventListener('click', (event) => refresh_cmds());
+	if (!commands_refresh2.getAttribute('click_attached')) {
+		commands_refresh2.addEventListener('click', refresh_cmds);
+		commands_refresh2.setAttribute('click_attached', 'true');
+	}
 
 	const cmd_refresh_busy = document.getElementById('cmd_refresh_busy');
-	//cmd_refresh_busy.hidden = true;
 	const cmd_refresh_busy2 = document.getElementById('cmd_refresh_busy2');
 	cmd_refresh_busy2.hidden = true;
+
+	const req_missing = document.getElementById('req_missing');
+	req_missing.hidden = !(missing_required.length > 0);
+
+	const close_btn1 = document.getElementById('cmd_modal_close1');
+	const close_btn2 = document.getElementById('cmd_modal_close2');
+	close_btn1.disabled = missing_required.length > 0;
+	close_btn2.disabled = missing_required.length > 0;
+
+	if (missing_required.length > 0) {
+		cmd_modal = cmd_modal || new bootstrap.Modal(document.getElementById('cmds_modal'))
+		cmd_modal.show();
+	}
 
 	function refresh_cmds() {
 		if(!ws)
