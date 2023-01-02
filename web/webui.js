@@ -635,6 +635,12 @@ function global_status(msg) {
 	streams_playing(status.playing);
 }
 
+
+const required_commands = {
+	"mpv"        : true,
+	"yt-dlp"     : true,
+};
+
 function mklink(ref) {
 	const refs = {
 		"mpv"        : "https://mpv.io/installation/",
@@ -645,11 +651,49 @@ function mklink(ref) {
 	return refs[ref] ? ('<a href="'+refs[ref]+'">'+ref+'</a>') : ref;
 }
 
+function populate_cmds_table(cmds) {
+	let template = document.getElementById('cmd-');
+	let parent   = template.parentNode;
+	parent.replaceChildren(template);
+
+	const sorted = ["mpv", "yt-dlp", "streamlink", "xrandr"];
+
+	for (let i=0;i<sorted.length;i++) {
+		let n = template.cloneNode(true);
+		let children = n.childNodes;
+		n.id += i;
+		n.hidden = false;
+
+		let cmd_name = sorted[i];
+		let cmd = cmds[cmd_name];
+		if (!cmd) continue;
+
+		const code     = parseInt(cmd.exit_code);
+		const required = required_commands[cmd_name];
+
+		n.classList.add( (code == 0) ? "table-success" : (required ? "table-danger" : "table-warning"));
+
+		let required_node = replace_child(children,"cmd-required-",i);
+		required_node.textContent = required ? "required" : "optional";
+
+		let name_node = replace_child(children,"cmd-cmd-",i);
+		name_node.innerHTML = "<b>" + mklink(cmd_name) + "</b>";
+
+		let exitcode_node = replace_child(children,"cmd-exitcode-",i);
+		if (code)
+			exitcode_node.innerHTML = "<b>" + cmd.exit_code + "&#x2718;</b>";
+		else
+			exitcode_node.innerHTML = cmd.exit_code + "&#x2714;";
+
+		let output_node = replace_child(children,"cmd-output-",i);
+		output_node.textContent = cmd.error ? cmd.error : cmd.stdout;
+
+		parent.appendChild(n);
+	}
+}
+
 function commands_probed(msg) {
-	const required_commands = {
-		"mpv"        : true,
-		"yt-dlp"     : true,
-	};
+
 	const results = msg.payload;
 	if ((!results) || (results.length < 1))
 		return;
@@ -680,13 +724,14 @@ function commands_probed(msg) {
 
 	/* build status note */
 	const cmd_missing_alert = document.getElementById('cmd_missing_alert');
-	const alert = (message, type) => {
+	const cmd_alert = (message, type) => {
 	  const wrapper = document.createElement('div');
 	  wrapper.innerHTML = [
 		`<div class="alert alert-${type}" role="alert">`,
 		`   <div>${message}</div>`,
+		'   <div class="spinner-border spinner-border-sm" role="status" id="cmd_refresh_busy" hidden><span class="visually-hidden">Loading...</span></div>',
 		'   <button type="button" class="btn btn-secondary btn-sm" id="commands_refresh"><i class="bi bi-arrow-clockwise"></i>&nbsp;Refresh</button>',
-		'   <button type="button" class="btn btn-secondary btn-sm" id="commands_details" disabled><i class="bi bi-list-columns-reverse"></i>&nbsp;Details</button>',
+		'   <button type="button" class="btn btn-secondary btn-sm" id="commands_details" data-bs-toggle="modal" data-bs-target="#cmds_modal"><i class="bi bi-list-columns-reverse"></i>&nbsp;Details</button>',
 		'</div>'
 	  ].join('');
 	  cmd_missing_alert.replaceChildren(wrapper);
@@ -705,19 +750,33 @@ function commands_probed(msg) {
 		else
 			alert_msg += "Optional commands failed: " + missing_optional;
 	}
-	alert(alert_msg, alert_type);
+	cmd_alert(alert_msg, alert_type);
 
 	/* button handlers for status note */
 	const commands_refresh = document.getElementById('commands_refresh');
-	commands_refresh.addEventListener('click', (event) => {
-	  if(ws)
-		ws.send(JSON.stringify({request : "probe_commands"}));
-	})
+	commands_refresh.disabled = false;
+	commands_refresh.addEventListener('click', (event) => refresh_cmds());
 
-	const commands_details = document.getElementById('commands_details');
-	commands_details.addEventListener('click', (event) => {
-	  console.log("TBD: command_details https://getbootstrap.com/docs/5.2/components/modal/#scrolling-long-content");
-	})
+	const commands_refresh2 = document.getElementById('commands_refresh2');
+	commands_refresh2.disabled = false;
+	commands_refresh2.addEventListener('click', (event) => refresh_cmds());
+
+	const cmd_refresh_busy = document.getElementById('cmd_refresh_busy');
+	//cmd_refresh_busy.hidden = true;
+	const cmd_refresh_busy2 = document.getElementById('cmd_refresh_busy2');
+	cmd_refresh_busy2.hidden = true;
+
+	function refresh_cmds() {
+		if(!ws)
+			return;
+		ws.send(JSON.stringify({request : "probe_commands"}));
+		commands_refresh.disabled = true;
+		commands_refresh2.disabled = true;
+		cmd_refresh_busy.hidden = false;
+		cmd_refresh_busy2.hidden = false;
+	}
+
+	populate_cmds_table(results);
 }
 
 function profiles_notification(msg) {

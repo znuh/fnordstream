@@ -242,8 +242,53 @@
 		</div>
 	  </div>
 	</div>
-    <script src="bootstrap-5.2.3-dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
-    <script src="webui.js"></script>
   </div>
+
+	<!-- Modal -->
+	<div class="modal modal-lg fade" id="cmds_modal" tabindex="-1" aria-labelledby="cmdModalLabel" aria-hidden="true">
+	  <div class="modal-dialog">
+		<div class="modal-content">
+		  <div class="modal-header">
+			<h1 class="modal-title fs-5" id="cmdModalLabel">Required &amp; optional commands</h1>
+			<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+		  </div>
+
+		  <div class="modal-body">
+              <table class="table caption-top">
+                <caption>
+                  External Commands:
+                </caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Required</th>
+                    <th scope="col">Command</th>
+                    <th scope="col">Exit code</th>
+                    <th scope="col">Output</th>
+                  </tr>
+                </thead>
+                <tbody id="cmds-table">
+                  <tr id="cmd-" hidden>
+                    <!-- template -->
+                    <td id="cmd-required-"></td>
+                    <td id="cmd-cmd-"></td>
+                    <td id="cmd-exitcode-"></td> <!-- style="max-width: 200px;" -->
+                    <td id="cmd-output-" style="white-space: pre;"></td>
+                  </tr>
+                </tbody>
+              </table>
+
+		  </div>
+		  <div class="modal-footer">
+			<div class="spinner-border" role="status" id="cmd_refresh_busy2" hidden><span class="visually-hidden">Loading...</span></div>
+			<button type="button" class="btn btn-secondary" id="commands_refresh2"><i class="bi bi-arrow-clockwise"></i>&nbsp;Refresh</button>
+			<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+		  </div>
+		</div>
+	  </div>
+	</div>
+
+  <script src="bootstrap-5.2.3-dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
+  <script src="webui.js"></script>
+
 </body>
 </html>
