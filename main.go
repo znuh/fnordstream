@@ -3,7 +3,6 @@ package main
 import "flag"
 
 /* TODOs:
- * - add detection for missing mpv/streamlink/yt-dlp/etc.
  * - web: add stream status indicator
  * - go: extend global status on connect (include stream info, etc.)
  * - go: OSX monitor detection
