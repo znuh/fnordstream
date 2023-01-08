@@ -7,6 +7,53 @@ import (
 	"encoding/json"
 )
 
+type StreamStatus   int
+const (
+	STOPPED  StreamStatus = iota
+	STARTED
+) // TBD
+
+type Stream struct {
+	notifications     chan<- *Notification
+	stream_idx        int
+
+	location          string
+	viewport         *Geometry
+	options           map[string]bool
+
+	player_config     PlayerConfig
+
+	restart_pending   bool
+}
+
+func NewStream(notifications chan<- *Notification, stream_idx int, location string, viewport *Geometry, options map[string]bool) *Stream {
+	stream := &Stream{
+		notifications : notifications,
+		stream_idx    : stream_idx,
+		location      : location,
+		viewport      : viewport,
+		options       : options,
+	}
+	// TBD
+	return stream
+}
+
+func (stream * Stream) Start() {
+	// TBD
+}
+
+func (stream * Stream) Stop() {
+	// TBD
+}
+
+func (stream * Stream) Control(ctl string, value interface{}) {
+	// TBD
+}
+
+func (stream * Stream) Shutdown() {
+	// TBD
+}
+
 func stream_status(hub *StreamHub, idx int, status *PlayerStatus) {
 	player := hub.player_by_idx[idx]
 	fmt.Println("player_status", idx, status)
@@ -122,7 +169,7 @@ func stream_start(hub *StreamHub, idx int) {
 	hub.idx_by_player[player] = idx
 }
 
-func mux_player(send chan *Notification, player *Player) {
+func mux_player(send chan<- *Notification, player *Player) {
 	for {
 		status, ok := <-player.Status
 		if !ok { break }
