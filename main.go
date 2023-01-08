@@ -3,12 +3,13 @@ package main
 import "flag"
 
 /* TODOs:
- * - web: add stream status indicator
+ * - go: rewrite Stream/Player mess
  * - go: extend global status on connect (include stream info, etc.)
+ * - web: add stream status indicator
+ * - auto-sync for stream buffers
+ *
  * - go: OSX monitor detection
  * - layout customisation (incl. multi-monitor)
- * - auto-sync for stream buffers
- * - go: rewrite Stream/Player mess
  * - web: add support for remote displays
  * - go: add support for remote clients (w/ IP/user auth?)
  */
