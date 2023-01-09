@@ -5,6 +5,7 @@ import (
 	"log"
 	"math"
 	"regexp"
+	"strconv"
 	"runtime"
 	"encoding/json"
 	"github.com/mitchellh/mapstructure"
@@ -145,7 +146,43 @@ func start_streams_req(hub *StreamHub, client *Client, request map[string]interf
 
 	/* start streams */
 	for idx, location := range hub.stream_locations {
-		stream           := NewStream(hub.notifications, idx, location, &hub.viewports[idx], hub.playback_options)
+		/* build player config */
+		mpv_args := []string{
+			"--mute=yes",
+			"--border=no",
+			"--really-quiet",
+			"--geometry=" + hub.viewports[idx].String(),
+		}
+		streamlink_args := []string{
+			"--player=mpv",
+			"--player-fifo",
+			//"-v", // verbose player
+		}
+
+		if !options["start_muted"] {
+			mpv_args[0] = "--mute=no"
+		}
+
+		config := &PlayerConfig{
+			mpv_args            : mpv_args,
+			location            : location,
+			ipc_pipe            : hub.pipe_prefix + strconv.Itoa(idx),
+			restart_error_delay : -1,
+		}
+
+		if options["restart_error"] {
+			config.restart_error_delay = hub.restart_error_delay
+		}
+		config.restart_user_quit = options["restart_user_quit"]
+		config.use_streamlink    = options["use_streamlink"]
+		if config.use_streamlink {
+			if options["twitch-disable-ads"] {
+				streamlink_args = append(streamlink_args, "--twitch-disable-ads")
+			}
+			config.streamlink_args = streamlink_args
+		}
+
+		stream           := NewStream(hub.notifications, idx, config)
 		hub.streams[idx]  = stream
 		stream.Start()
 	}

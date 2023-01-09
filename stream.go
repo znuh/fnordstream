@@ -1,7 +1,7 @@
 package main
 
 import (
-	//"fmt"
+	"fmt"
 	//"strconv"
 	//"encoding/json"
 )
@@ -14,66 +14,121 @@ type StreamCtl struct {
 type Stream struct {
 	notifications     chan<- *Notification
 	stream_idx        int
+	ipc_pipe          string
 
-	location          string
-	viewport         *Geometry
-	options           map[string]bool
+	//location          string
+	//viewport         *Geometry
+	//options           map[string]bool
 
-	player_config     PlayerConfig
+	player_cfg       *PlayerConfig
 
-	ctl               chan *StreamCtl
-	shutdown          bool
+	ctl_chan          chan *StreamCtl
+	user_shutdown     bool
+
+	//player_started    bool
+	player           *Player
+	restart_pending   bool
 }
 
-func NewStream(notifications chan<- *Notification, stream_idx int, location string, viewport *Geometry, options map[string]bool) *Stream {
+/* user interface */
+//hub.pipe_prefix + strconv.Itoa(stream.stream_idx),
+func NewStream(notifications chan<- *Notification, stream_idx int, player_cfg *PlayerConfig) *Stream {
+//ipc_pipe string, location string, viewport *Geometry, options map[string]bool) *Stream {
 	stream := &Stream{
 		notifications : notifications,
 		stream_idx    : stream_idx,
+//		ipc_pipe      : ipc_pipe,
 
-		location      : location,
-		viewport      : viewport,
-		options       : options,
+//		location      : location,
+//		viewport      : viewport,
+//		options       : options,
+		player_cfg    : player_cfg,
 
-		ctl           : make(chan *StreamCtl, 16),
+		ctl_chan      : make(chan *StreamCtl, 16),
 	}
 	go stream.run()
 	return stream
 }
 
 func (stream * Stream) Control(ctl *StreamCtl) {
-	if stream.shutdown { return }
-	stream.ctl <- ctl
+	if stream.user_shutdown { return }
+	stream.ctl_chan <- ctl
 }
 
 func (stream * Stream) Start() {
-	if stream.shutdown { return }
+	if stream.user_shutdown { return }
 	stream.Control(&StreamCtl{cmd:"start"})
 }
 
 func (stream * Stream) Stop() {
-	if stream.shutdown { return }
+	if stream.user_shutdown { return }
 	stream.Control(&StreamCtl{cmd:"stop"})
 }
 
 func (stream * Stream) Shutdown() {
-	if stream.shutdown { return }
-	stream.shutdown = true
-	close(stream.ctl)
+	if stream.user_shutdown { return }
+	stream.user_shutdown = true
+	close(stream.ctl_chan)
 	// TODO: wait?
 }
 
+/* internal stuff */
+
 func (stream * Stream) run() {
+	shutdown       := false
+
+	for !shutdown {
+
+		select {
+
+			/* control channel */
+			case ctl, ok := <- stream.ctl_chan:
+				if !ok {
+					shutdown = true
+					break;
+				}
+
+				switch ctl.cmd {
+					case "start": stream.player_start()
+					case "stop":  stream.player_stop()
+					default:      stream.player_ctl(ctl)
+				}
+
+		} // select
+	 } // for loop
+
+}
+
+func (stream * Stream) player_start() {
+	// restart?
+	if stream.player != nil {
+		stream.restart_pending = true
+		stream.player_stop()
+		return
+	}
+	stream.restart_pending = false
+
+	stream.player = NewPlayer(stream.player_cfg)
+//	go mux_player(hub.notifications, player)
+
+}
+
+func (stream * Stream) player_stop() {
+	if stream.player == nil { return }
+}
+
+func (stream * Stream) player_ctl(ctl *StreamCtl) {
+  	var str string
+	if ctl.cmd == "seek" {
+		str = fmt.Sprintf(`{"command":["osd-msg-bar","%s","%s"]}`+"\n",ctl.cmd,ctl.val)
+	} else {
+		str = fmt.Sprintf(`{"command":["osd-msg-bar","set","%s","%s"]}`+"\n",ctl.cmd,ctl.val)
+	}
+	str = str
 	// TBD
 }
 
 /*
-
-  	var str string
-	if ctl == "seek" {
-		str = fmt.Sprintf(`{"command":["osd-msg-bar","%s","%s"]}`+"\n",ctl,val)
-	} else {
-		str = fmt.Sprintf(`{"command":["osd-msg-bar","set","%s","%s"]}`+"\n",ctl,val)
-	}
 
 // stream (re)start triggered via webui
 // OR triggered via stream_status with restart_pending == true
@@ -91,47 +146,6 @@ func stream_start(hub *StreamHub, idx int) {
 
 	hub.restart_pending[idx] = false
 
-	mpv_args := []string{
-		"--mute=yes",
-		"--border=no",
-		"--really-quiet",
-		"--geometry=" + viewport.String(),
-	}
-	streamlink_args := []string{
-		"--player=mpv",
-		"--player-fifo",
-		//"-v", // verbose player
-	}
-
-	if !options["start_muted"] {
-		mpv_args[0] = "--mute=no"
-	}
-
-	// sanitize location
-	re := regexp.MustCompile(`[^a-zA-Z0-9-_/:.,?&@=#%]`)
-	location = re.ReplaceAllString(location, "")
-
-	config := PlayerConfig{
-		mpv_args            : mpv_args,
-		location            : location,
-		ipc_pipe            : hub.pipe_prefix + strconv.Itoa(idx),
-		restart_error_delay : -1,
-	}
-
-	if options["restart_error"] {
-		config.restart_error_delay = hub.restart_error_delay
-	}
-	config.restart_user_quit = options["restart_user_quit"]
-	config.use_streamlink    = options["use_streamlink"]
-	if config.use_streamlink {
-		if options["twitch-disable-ads"] {
-			streamlink_args = append(streamlink_args, "--twitch-disable-ads")
-		}
-		config.streamlink_args = streamlink_args
-	}
-
-	player := NewPlayer(hub.notifications, &config)
-	go mux_player(hub.notifications, player)
 	hub.player_by_idx[idx]    = player
 	hub.idx_by_player[player] = idx
 }

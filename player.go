@@ -65,7 +65,7 @@ type PlayerStatus struct {
  * - bash command not found: ....................... 127
  */
 
-func NewPlayer(notechan chan *Notification, config *PlayerConfig) *Player {
+func NewPlayer(config *PlayerConfig) *Player {
 	player := &Player{
 		config   : config,
 		Control  : make(chan []byte, 32),
