@@ -1,10 +1,10 @@
 package main
 
 import (
-	"fmt"
-	"strconv"
-	"regexp"
-	"encoding/json"
+	//"fmt"
+	//"strconv"
+	//"regexp"
+	//"encoding/json"
 )
 
 type StreamStatus   int
@@ -54,6 +54,11 @@ func (stream * Stream) Shutdown() {
 	// TBD
 }
 
+func (stream * Stream) run() {
+	// TBD
+}
+
+/*
 func stream_status(hub *StreamHub, idx int, status *PlayerStatus) {
 	player := hub.player_by_idx[idx]
 	fmt.Println("player_status", idx, status)
@@ -95,11 +100,11 @@ func stream_ctl(hub *StreamHub, idx int, ctl string, value interface{}) {
 	//fmt.Print("stream_ctl", idx,ctl,value,str)
 }
 
-/* stream stopped via webui */
+// stream stopped via webui
 func stream_stop(hub *StreamHub, idx int) {
 	player := hub.player_by_idx[idx]
 	if player != nil {
-		if !hub.ctl_closed[player] { /* prevent ditch from crashing things by spamming stop/(re)start buttons */
+		if !hub.ctl_closed[player] { // prevent ditch from crashing things by spamming stop/(re)start buttons
 			hub.ctl_closed[player] = true
 			close(player.Control)
 		}
@@ -108,14 +113,14 @@ func stream_stop(hub *StreamHub, idx int) {
 	//fmt.Println("stream_stop", player)
 }
 
-/* stream (re)start triggered via webui
- * OR triggered via stream_status with restart_pending == true */
+// stream (re)start triggered via webui
+// OR triggered via stream_status with restart_pending == true
 func stream_start(hub *StreamHub, idx int) {
 	location := hub.stream_locations[idx]
 	viewport := hub.viewports[idx]
 	options  := hub.playback_options
 
-	/* restart player if already started */
+	// restart player if already started
 	if hub.player_by_idx[idx] != nil {
 		stream_stop(hub, idx)
 		hub.restart_pending[idx] = true
@@ -195,3 +200,4 @@ func mux_player(send chan<- *Notification, player *Player) {
 	} // for !closed
 	//fmt.Println("mux_player done")
 }
+*/

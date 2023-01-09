@@ -133,11 +133,15 @@ func start_streams_req(hub *StreamHub, client *Client, request map[string]interf
 	hub.viewports         = viewports
 	hub.playback_options  = options
 
+	hub.streams           = make([]*Stream, len(hub.stream_locations))
+
 	global_status(hub, nil, nil) /* signal playing mode to all clients - TODO: add more info */
 
-	/* start players */
-	for idx, _ := range hub.stream_locations {
-		stream_start(hub, idx)
+	/* start streams */
+	for idx, location := range hub.stream_locations {
+		stream           := NewStream(hub.notifications, idx, location, &hub.viewports[idx], hub.playback_options)
+		hub.streams[idx]  = stream
+		stream.Start()
 	}
 }
 
@@ -146,8 +150,8 @@ func stop_streams_req(hub *StreamHub, client *Client, request map[string]interfa
 
 	if !hub.streams_playing { return }
 
-	for idx, _ := range hub.stream_locations {
-		stream_stop(hub, idx)
+	for _, stream := range hub.streams {
+		stream.Stop()
 	}
 
 	hub.streams_playing   = false
@@ -161,10 +165,11 @@ func start_stream_req(hub *StreamHub, client *Client, request map[string]interfa
 	tmp, ok := request["stream"].(float64)
 	if !ok { return }
 
-	stream := int(tmp)
-	if stream < 0 || stream >= len(hub.stream_locations) { return }
+	stream_idx := int(tmp)
+	if stream_idx < 0 || stream_idx >= len(hub.stream_locations) { return }
 
-	stream_start(hub, stream)
+	stream := hub.streams[stream_idx]
+	stream.Start()
 }
 
 /* stop single stream */
@@ -174,10 +179,11 @@ func stop_stream_req(hub *StreamHub, client *Client, request map[string]interfac
 	tmp, ok := request["stream"].(float64)
 	if !ok { return }
 
-	stream := int(tmp)
-	if stream < 0 || stream >= len(hub.stream_locations) { return }
+	stream_idx := int(tmp)
+	if stream_idx < 0 || stream_idx >= len(hub.stream_locations) { return }
 
-	stream_stop(hub, stream)
+	stream := hub.streams[stream_idx]
+	stream.Stop()
 }
 
 func global_status(hub *StreamHub, client *Client, request map[string]interface {}) {
@@ -193,8 +199,8 @@ func stream_ctl_req(hub *StreamHub, client *Client, request map[string]interface
 	tmp, ok := request["stream"].(float64)
 	if !ok { return }
 
-	stream := int(tmp)
-	if stream < 0 || stream >= len(hub.stream_locations) { return }
+	stream_idx := int(tmp)
+	if stream_idx < 0 || stream_idx >= len(hub.stream_locations) { return }
 
 	ctl, ok := request["ctl"].(string)
 	if !ok { return }
@@ -202,7 +208,8 @@ func stream_ctl_req(hub *StreamHub, client *Client, request map[string]interface
 	value, ok := request["value"]
 	if !ok { return }
 
-	stream_ctl(hub, stream, ctl, value)
+	stream := hub.streams[stream_idx]
+	stream.Control(ctl, value)
 }
 
 func get_profiles(hub *StreamHub, client *Client, request map[string]interface {}) {
@@ -300,6 +307,7 @@ func send_response(send chan<- *Notification, client *Client, request string, pa
 	}
 	note := &Notification{
 		dst           : client,
+		stream_idx    : -1,
 		notification  : request,
 		payload       : payload,
 		json_message  : json_response,

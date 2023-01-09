@@ -15,14 +15,12 @@ type Client struct {
 
 type ClientRequest struct {
 	src               *Client
-	//dst             *Player
 	request            map[string]interface{}
-	// TODO: original JSON message?
 }
 
 type Notification struct {
 	dst               *Client
-	src               *Player
+	stream_idx         int       // stream index source (if >= 0)
 
 	notification       string
 	payload            interface{}
@@ -48,10 +46,7 @@ type StreamHub struct {
 	playback_options      map[string]bool
 
 	streams_playing       bool
-	player_by_idx         map[int]*Player
-	idx_by_player         map[*Player]int
-	ctl_closed            map[*Player]bool
-	restart_pending       map[int]bool
+	streams             []*Stream
 
 	pipe_prefix           string
 	restart_error_delay   time.Duration
@@ -71,11 +66,6 @@ func NewStreamHub() *StreamHub {
 		displays            : displays_detect(),
 		pipe_prefix         : "/tmp/nstream_mpv_ipc",
 		restart_error_delay : 1*time.Second,
-
-		player_by_idx       : make(map[int]*Player),
-		idx_by_player       : make(map[*Player]int),
-		ctl_closed          : make(map[*Player]bool),
-		restart_pending		: make(map[int]bool),
 	}
 	if runtime.GOOS == "windows" {
 		shub.pipe_prefix = "\\\\.\\pipe\\nstream_mpv_ipc"
@@ -135,16 +125,12 @@ func (hub * StreamHub) Run() {
 
 			/* messages to clients - includes player -> client messages */
 			case note := <-hub.notifications:
-				player       := note.src
 				client       := note.dst
 				json_message := note.json_message
 
 				// prepend JSON data with note type and stream_id
-				if player != nil {
-					idx, ok := hub.idx_by_player[player]
-					//fmt.Println("idx ",idx, ok);
-					if !ok { break } // drop message if player no longer exists
-					prepend          := `{"notification":"`+note.notification+`","stream_idx":`+strconv.Itoa(idx)+`,"payload":`
+				if note.stream_idx >= 0 {
+					prepend          := `{"notification":"`+note.notification+`","stream_idx":`+strconv.Itoa(note.stream_idx)+`,"payload":`
 					str              := prepend + string(json_message) + "}"
 					json_message      = []byte(str)
 					note.json_message = json_message
