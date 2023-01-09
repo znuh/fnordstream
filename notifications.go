@@ -24,13 +24,12 @@ func displays_update(hub *StreamHub, note *Notification) {
 func player_status_update(hub *StreamHub, note *Notification) {
 	idx := note.stream_idx
 	if (idx < 0) || (idx >= len(hub.streams)) { return }
-//	player     := note.src
-//	idx, ok    := hub.idx_by_player[player]
-//	if !ok { return }
+
 	status, ok := note.payload.(*PlayerStatus)
 	if !ok { return }
-	status=status
+
 	//TBD
+	status=status
 	//stream_status(hub, idx, status)
 }
 

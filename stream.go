@@ -3,15 +3,13 @@ package main
 import (
 	//"fmt"
 	//"strconv"
-	//"regexp"
 	//"encoding/json"
 )
 
-type StreamStatus   int
-const (
-	STOPPED  StreamStatus = iota
-	STARTED
-) // TBD
+type StreamCtl struct {
+	cmd       string
+	val       string
+}
 
 type Stream struct {
 	notifications     chan<- *Notification
@@ -23,35 +21,45 @@ type Stream struct {
 
 	player_config     PlayerConfig
 
-	restart_pending   bool
+	ctl               chan *StreamCtl
+	shutdown          bool
 }
 
 func NewStream(notifications chan<- *Notification, stream_idx int, location string, viewport *Geometry, options map[string]bool) *Stream {
 	stream := &Stream{
 		notifications : notifications,
 		stream_idx    : stream_idx,
+
 		location      : location,
 		viewport      : viewport,
 		options       : options,
+
+		ctl           : make(chan *StreamCtl, 16),
 	}
-	// TBD
+	go stream.run()
 	return stream
 }
 
+func (stream * Stream) Control(ctl *StreamCtl) {
+	if stream.shutdown { return }
+	stream.ctl <- ctl
+}
+
 func (stream * Stream) Start() {
-	// TBD
+	if stream.shutdown { return }
+	stream.Control(&StreamCtl{cmd:"start"})
 }
 
 func (stream * Stream) Stop() {
-	// TBD
-}
-
-func (stream * Stream) Control(ctl string, value interface{}) {
-	// TBD
+	if stream.shutdown { return }
+	stream.Control(&StreamCtl{cmd:"stop"})
 }
 
 func (stream * Stream) Shutdown() {
-	// TBD
+	if stream.shutdown { return }
+	stream.shutdown = true
+	close(stream.ctl)
+	// TODO: wait?
 }
 
 func (stream * Stream) run() {
@@ -59,59 +67,13 @@ func (stream * Stream) run() {
 }
 
 /*
-func stream_status(hub *StreamHub, idx int, status *PlayerStatus) {
-	player := hub.player_by_idx[idx]
-	fmt.Println("player_status", idx, status)
-	if status.Status == "stopped" {
-		// do postponed player deletion
-		delete(hub.idx_by_player, player)
-		delete(hub.player_by_idx, idx)
-		delete(hub.ctl_closed, player)
-		if hub.restart_pending[idx] {
-			stream_start(hub, idx)
-		}
-	}
-}
 
-var allowed_ctls = map[string]bool{
-	"volume" : true,
-	"seek"   : true,
-	"mute"   : true,
-}
-
-func stream_ctl(hub *StreamHub, idx int, ctl string, value interface{}) {
-	player, ok  := hub.player_by_idx[idx]
-	if !ok { return }
-	allowed, ok := allowed_ctls[ctl]
-	if (!ok) || (!allowed) { return }
-	// sanitize val
-	re  := regexp.MustCompile(`[^a-zA-Z0-9]`)
-	val := re.ReplaceAllString(fmt.Sprint(value),"")
-	var str string
+  	var str string
 	if ctl == "seek" {
 		str = fmt.Sprintf(`{"command":["osd-msg-bar","%s","%s"]}`+"\n",ctl,val)
 	} else {
 		str = fmt.Sprintf(`{"command":["osd-msg-bar","set","%s","%s"]}`+"\n",ctl,val)
 	}
-	select {
-		case player.Control <- []byte(str):
-		default:
-	}
-	//fmt.Print("stream_ctl", idx,ctl,value,str)
-}
-
-// stream stopped via webui
-func stream_stop(hub *StreamHub, idx int) {
-	player := hub.player_by_idx[idx]
-	if player != nil {
-		if !hub.ctl_closed[player] { // prevent ditch from crashing things by spamming stop/(re)start buttons
-			hub.ctl_closed[player] = true
-			close(player.Control)
-		}
-	}
-	hub.restart_pending[idx] = false
-	//fmt.Println("stream_stop", player)
-}
 
 // stream (re)start triggered via webui
 // OR triggered via stream_status with restart_pending == true
