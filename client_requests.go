@@ -101,7 +101,7 @@ func suggest_viewports(hub *StreamHub, client *Client, request map[string]interf
 }
 
 /* start playing all streams */
-func start_streams_req(hub *StreamHub, client *Client, request map[string]interface {}) {
+func start_streams(hub *StreamHub, client *Client, request map[string]interface {}) {
 
 	if hub.streams_playing { return }
 
@@ -189,7 +189,7 @@ func start_streams_req(hub *StreamHub, client *Client, request map[string]interf
 }
 
 /* stop playing completely */
-func stop_streams_req(hub *StreamHub, client *Client, request map[string]interface {}) {
+func stop_streams(hub *StreamHub, client *Client, request map[string]interface {}) {
 
 	if !hub.streams_playing { return }
 
@@ -204,7 +204,7 @@ func stop_streams_req(hub *StreamHub, client *Client, request map[string]interfa
 }
 
 /* start single stream */
-func start_stream_req(hub *StreamHub, client *Client, request map[string]interface {}) {
+func start_stream(hub *StreamHub, client *Client, request map[string]interface {}) {
 	if !hub.streams_playing { return }
 
 	tmp, ok := request["stream"].(float64)
@@ -219,7 +219,7 @@ func start_stream_req(hub *StreamHub, client *Client, request map[string]interfa
 }
 
 /* stop single stream */
-func stop_stream_req(hub *StreamHub, client *Client, request map[string]interface {}) {
+func stop_stream(hub *StreamHub, client *Client, request map[string]interface {}) {
 	if !hub.streams_playing { return }
 
 	tmp, ok := request["stream"].(float64)
@@ -240,7 +240,7 @@ func global_status(hub *StreamHub, client *Client, request map[string]interface 
 	send_response(hub.notifications, client, "global_status", &note)
 }
 
-func stream_ctl_req(hub *StreamHub, client *Client, request map[string]interface {}) {
+func stream_ctl(hub *StreamHub, client *Client, request map[string]interface {}) {
 	var allowed_ctls = map[string]bool{
 		"volume" : true,
 		"seek"   : true,
@@ -331,11 +331,11 @@ var req_handlers = map[string]RequestHandler{
 
 	"suggest_viewports"  : suggest_viewports,
 
-	"start_streams"      : start_streams_req,
-	"stop_streams"       : stop_streams_req,
-	"start_stream"       : start_stream_req,
-	"stop_stream"        : stop_stream_req,
-	"stream_ctl"         : stream_ctl_req,
+	"start_streams"      : start_streams,
+	"stop_streams"       : stop_streams,
+	"start_stream"       : start_stream,
+	"stop_stream"        : stop_stream,
+	"stream_ctl"         : stream_ctl,
 }
 
 func client_request(hub *StreamHub, req *ClientRequest) {
