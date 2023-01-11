@@ -2,8 +2,7 @@ package main
 
 import (
 	"fmt"
-	//"strconv"
-	//"encoding/json"
+	"encoding/json"
 )
 
 type StreamCtl struct {
@@ -16,32 +15,21 @@ type Stream struct {
 	stream_idx        int
 	ipc_pipe          string
 
-	//location          string
-	//viewport         *Geometry
-	//options           map[string]bool
-
 	player_cfg       *PlayerConfig
 
 	ctl_chan          chan *StreamCtl
 	user_shutdown     bool
 
-	//player_started    bool
 	player           *Player
 	restart_pending   bool
 }
 
 /* user interface */
-//hub.pipe_prefix + strconv.Itoa(stream.stream_idx),
 func NewStream(notifications chan<- *Notification, stream_idx int, player_cfg *PlayerConfig) *Stream {
-//ipc_pipe string, location string, viewport *Geometry, options map[string]bool) *Stream {
 	stream := &Stream{
 		notifications : notifications,
 		stream_idx    : stream_idx,
-//		ipc_pipe      : ipc_pipe,
 
-//		location      : location,
-//		viewport      : viewport,
-//		options       : options,
 		player_cfg    : player_cfg,
 
 		ctl_chan      : make(chan *StreamCtl, 16),
@@ -74,6 +62,7 @@ func (stream * Stream) Shutdown() {
 
 /* internal stuff */
 
+/* started in goroutine */
 func (stream * Stream) run() {
 	shutdown       := false
 
@@ -94,63 +83,48 @@ func (stream * Stream) run() {
 					default:      stream.player_ctl(ctl)
 				}
 
+			// TODO: player status, IPC, reconnect timer?
+
 		} // select
 	 } // for loop
-
+	stream.player_stop()
 }
 
 func (stream * Stream) player_start() {
 	// restart?
 	if stream.player != nil {
-		stream.restart_pending = true
 		stream.player_stop()
+		stream.restart_pending = true
 		return
 	}
 	stream.restart_pending = false
 
 	stream.player = NewPlayer(stream.player_cfg)
-//	go mux_player(hub.notifications, player)
-
+	go mux_player(stream.notifications, stream.player, stream.stream_idx)
 }
 
 func (stream * Stream) player_stop() {
 	if stream.player == nil { return }
+	close(stream.player.Control)
+	stream.player = nil
+	stream.restart_pending = false
 }
 
 func (stream * Stream) player_ctl(ctl *StreamCtl) {
-  	var str string
+	var str string
+	if stream.player == nil { return }
 	if ctl.cmd == "seek" {
 		str = fmt.Sprintf(`{"command":["osd-msg-bar","%s","%s"]}`+"\n",ctl.cmd,ctl.val)
 	} else {
 		str = fmt.Sprintf(`{"command":["osd-msg-bar","set","%s","%s"]}`+"\n",ctl.cmd,ctl.val)
 	}
-	str = str
-	// TBD
-}
-
-/*
-
-// stream (re)start triggered via webui
-// OR triggered via stream_status with restart_pending == true
-func stream_start(hub *StreamHub, idx int) {
-	location := hub.stream_locations[idx]
-	viewport := hub.viewports[idx]
-	options  := hub.playback_options
-
-	// restart player if already started
-	if hub.player_by_idx[idx] != nil {
-		stream_stop(hub, idx)
-		hub.restart_pending[idx] = true
-		return
+	select {
+		case stream.player.Control <- []byte(str):
+		default:
 	}
-
-	hub.restart_pending[idx] = false
-
-	hub.player_by_idx[idx]    = player
-	hub.idx_by_player[player] = idx
 }
 
-func mux_player(send chan<- *Notification, player *Player) {
+func mux_player(send chan<- *Notification, player *Player, stream_idx int) {
 	for {
 		status, ok := <-player.Status
 		if !ok { break }
@@ -166,7 +140,7 @@ func mux_player(send chan<- *Notification, player *Player) {
 			payload         = status
 		}
 		note := Notification{
-			src           : player,
+			stream_idx    : stream_idx,
 			notification  : note_type,
 			payload       : payload,
 			json_message  : json_message,
@@ -176,4 +150,3 @@ func mux_player(send chan<- *Notification, player *Player) {
 	} // for !closed
 	//fmt.Println("mux_player done")
 }
-*/

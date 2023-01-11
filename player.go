@@ -78,6 +78,7 @@ func NewPlayer(config *PlayerConfig) *Player {
 func (player *Player) control(msg []byte) {
 	if (player.ipc_conn == nil) { return }
 	// TODO: add write timeout?
+	// TODO: mutex for ipc closed status? (start_ipc)
 	player.ipc_conn.Write(msg)
 }
 
