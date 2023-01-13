@@ -13,9 +13,9 @@ import (
 
 type StreamState int
 const (
-	Stopped           StreamState = iota
-	Started
-	IPC_Connected
+	ST_Stopped           StreamState = iota
+	ST_Started
+	ST_IPC_Connected
 )
 
 type StreamCtl struct {
@@ -124,6 +124,37 @@ func (stream *Stream) ticker_evt() {
 	//TBD
 }
 
+func (stream * Stream) state_change(new_state StreamState) {
+	if stream.ticker_ch != nil {
+		stream.ticker.Stop()
+		stream.ticker    = nil
+		stream.ticker_ch = nil
+	}
+
+	// TODO: restarting state?
+	stream.state = new_state
+
+	delay := time.Duration(-1)
+
+	switch stream.state {
+	case ST_Started:
+		delay = time.Millisecond * 100    // IPC reconnect ticker
+	case ST_Stopped:
+		// TODO: optional restart, delay depending on exit reason
+		// restart = time.Millisecond
+		delay = stream.player_cfg.restart_error_delay
+	default:
+	}
+
+	if delay > 0 {
+		stream.ticker    = time.NewTicker(delay)
+		stream.ticker_ch = stream.ticker.C
+	}
+
+	/* TODO: send player status update */
+	//player.Status <- &PlayerStatus{Status : "started"}
+}
+
 /*
 func (stream *Stream) shutdown_ticker() {
 	if stream.ipc_reconnect_ch == nil { return }
@@ -189,7 +220,7 @@ func (stream * Stream) player_stopped(cmd_status *cmd.Status) {
 func (stream * Stream) player_start() {
 
 	// restart?
-	if stream.cmd_status != nil {
+	if stream.state != ST_Stopped {
 		stream.player_stop()
 		stream.restart_pending = true
 		return
@@ -221,16 +252,8 @@ func (stream * Stream) player_start() {
 	cmd               := cmd.NewCmdOptions(cmdOptions, player_cmd, player_args...)
 	stream.cmd_status  = cmd.Start()
 
-	// TODO: schedule IPC reconnect
-	/*
-	if stream.ipc_reconnect_ch == nil {
-		stream.ipc_reconnect_ticker = time.NewTicker(time.Millisecond * 100)
-		stream.ipc_reconnect_ch     = stream.ipc_reconnect_ticker.C
-	}
-	*/
-
-	/* TODO: send player status update */
-	//player.Status <- &PlayerStatus{Status : "started"}
+	// schedule IPC reconnect
+	stream.state_change(ST_Started)
 }
 
 func (stream * Stream) player_stop() {
