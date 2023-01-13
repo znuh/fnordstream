@@ -7,7 +7,7 @@ import (
 	"bufio"
 	//"sync"
 	"strings"
-	//"encoding/json"
+	"encoding/json"
 	"github.com/go-cmd/cmd"
 )
 
@@ -100,9 +100,9 @@ func (stream * Stream) run() {
 				}
 
 				switch ctl.cmd {
-					case "start": stream.player_start()
-					case "stop":  stream.player_stop()
-					default:      stream.player_ctl(ctl)
+					case "start" : stream.player_start()
+					case "stop"  : stream.player_stop()
+					default      : stream.player_ctl(ctl)
 				}
 
 			// command status channel for player command (fires on player exit)
@@ -113,7 +113,7 @@ func (stream * Stream) run() {
 			case _ = <-stream.ticker_ch:
 				stream.ticker_evt()
 
-			// TODO: player status, IPC, reconnect timer?
+			// TODO: IPC
 
 		} // select
 	 } // for loop
@@ -121,15 +121,30 @@ func (stream * Stream) run() {
 }
 
 func (stream *Stream) ticker_evt() {
-	//TBD
+	if stream.state == ST_Started {
+		stream.ipc_start()
+	} else if stream.state == ST_Stopped {
+		stream.player_start()
+	} else {
+		// shouldn't happend
+		fmt.Println("stream: spurious ticker evt!", "state:", stream.state)
+		stream.ticker_stop()
+	}
 }
 
-func (stream * Stream) state_change(new_state StreamState) {
+func (stream *Stream) ticker_stop() {
 	if stream.ticker_ch != nil {
 		stream.ticker.Stop()
 		stream.ticker    = nil
 		stream.ticker_ch = nil
 	}
+}
+
+func (stream * Stream) state_change(new_state StreamState) {
+
+	if stream.state == new_state { return }   // nothing to do
+
+	stream.ticker_stop()  // stop ticker first, restart if necessary
 
 	// TODO: restarting state?
 	stream.state = new_state
@@ -143,8 +158,11 @@ func (stream * Stream) state_change(new_state StreamState) {
 		// TODO: optional restart, delay depending on exit reason
 		// restart = time.Millisecond
 		delay = stream.player_cfg.restart_error_delay
+		// TODO: cleanup IPC connection here?
 	default:
 	}
+
+	// TODO: restarting state?
 
 	if delay > 0 {
 		stream.ticker    = time.NewTicker(delay)
@@ -152,69 +170,22 @@ func (stream * Stream) state_change(new_state StreamState) {
 	}
 
 	/* TODO: send player status update */
+	// TODO: player_status
+/*
+	status := &Notification{
+		stream_idx   : stream.stream_idx,
+		notification : "player_status",
+		payload      : player_status,
+		json_message : json.Marshal(status),
+	}
+	stream.notifications <- status
+*/
 	//player.Status <- &PlayerStatus{Status : "started"}
 }
 
-/*
-func (stream *Stream) shutdown_ticker() {
-	if stream.ipc_reconnect_ch == nil { return }
-	stream.ipc_reconnect_ticker.Stop()
-	stream.ipc_reconnect_ticker = nil
-	stream.ipc_reconnect_ch     = nil
-}
-*/
-
-func (stream *Stream) player_ipc_start() error {
-	ipc_conn, err := dial_pipe(stream.player_cfg.ipc_pipe)
-	stream.ipc_conn = ipc_conn
-	if err != nil { return err }
-
-	// TODO: move to goroutine?
-	err = player_observe_properties(&ipc_conn)
-	if err != nil {
-		ipc_conn.Close()
-		stream.ipc_conn = nil
-		//log.Println(err)
-		return err
-	}
-
-	// stop IPC reconnect timer
-	//stream.dismiss_ipc_reconnect()
-
-	//stream.status_wg.Add(1)            // prevent close() of Status channel while we're using it
-
-	go func() {
-
-		defer func() {
-			ipc_conn.Close()           // Multiple goroutines may invoke methods on a Conn simultaneously.
-			//stream.status_wg.Done()    // allow close() of Status channel
-		}()
-
-		const ignore = `"request_id":0,"error":"success"}`
-
-		scanner := bufio.NewScanner(ipc_conn)
-		for scanner.Scan() {
-			data := scanner.Bytes()
-			if strings.Contains(string(data), ignore) { continue }
-			//fmt.Println(string(data),"#")
-			//TBD
-			//status := &PlayerStatus{
-				//json_message : data,
-			//}
-			//player.Status <- status
-		}
-
-		//if err := scanner.Err(); err != nil {
-			//log.Println(err)
-		//}
-	}() // receiver goroutine
-
-	return err
-}
-
 func (stream * Stream) player_stopped(cmd_status *cmd.Status) {
-	stream.cmd_status = nil
 	// TBD
+	stream.state_change(ST_Stopped)
 }
 
 func (stream * Stream) player_start() {
@@ -252,7 +223,7 @@ func (stream * Stream) player_start() {
 	cmd               := cmd.NewCmdOptions(cmdOptions, player_cmd, player_args...)
 	stream.cmd_status  = cmd.Start()
 
-	// schedule IPC reconnect
+	// schedule IPC (re)connect
 	stream.state_change(ST_Started)
 }
 
@@ -307,6 +278,61 @@ func mux_player(send chan<- *Notification, player *Player, stream_idx int) {
 }
 */
 
+func (stream *Stream) ipc_start() error {
+	ipc_conn, err := dial_pipe(stream.player_cfg.ipc_pipe)
+	stream.ipc_conn = ipc_conn
+	if err != nil { return err }
+
+	// TODO: move to goroutine?
+	err = player_observe_properties(&ipc_conn)
+	if err != nil {
+		ipc_conn.Close()
+		stream.ipc_conn = nil
+		//log.Println(err)
+		return err
+	}
+	ipc_conn.SetWriteDeadline(time.Time{})
+
+	// state update
+	stream.state_change(ST_IPC_Connected)
+
+	//stream.status_wg.Add(1)            // prevent close() of Status channel while we're using it
+
+	go func() {
+
+		defer func() {
+			ipc_conn.Close()           // Multiple goroutines may invoke methods on a Conn simultaneously.
+			//stream.status_wg.Done()    // allow close() of Status channel
+		}()
+
+		const ignore = `"request_id":0,"error":"success"}`
+
+		scanner := bufio.NewScanner(ipc_conn)
+		for scanner.Scan() {
+			json_message := scanner.Bytes()
+			if strings.Contains(string(json_message), ignore) { continue }
+			//fmt.Println(string(data),"#")
+
+			var payload interface{}
+			_ = json.Unmarshal(json_message, &payload)
+			status := &Notification{
+				stream_idx   : stream.stream_idx,
+				notification : "player_event",
+				payload      : payload,
+				json_message : json_message,
+			}
+			// TODO: prevent stopped players from sending notifications?
+			stream.notifications <- status
+		}
+
+		//if err := scanner.Err(); err != nil {
+			//log.Println(err)
+		//}
+	}() // receiver goroutine
+
+	return err
+}
+
 func player_observe_properties(conn *net.Conn) error {
 	mpv_properties := [...]string{
 		"mute", "volume",
@@ -339,6 +365,7 @@ func player_observe_properties(conn *net.Conn) error {
 	for _, p := range mpv_properties {
 		msg = append(msg, "{\"command\":[\"observe_property\",0,\""+p+"\"]}\n"...)
 	}
+	(*conn).SetWriteDeadline(time.Now().Add(10 * time.Millisecond))
 	_, err := (*conn).Write(msg)
 	return err
 }

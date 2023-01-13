@@ -35,27 +35,6 @@ type Player struct {
 	ipc_conn                 net.Conn
 }
 
-type PlayerConfig struct {
-	location              string
-
-	ipc_pipe              string
-	mpv_args            []string
-
-	use_streamlink        bool
-	streamlink_args     []string
-
-	restart_user_quit     bool
-	restart_error_delay   time.Duration
-}
-
-type PlayerStatus struct {
-	Status              string    `json:"status"`
-	Exit_code           int       `json:"exit_code"`
-	Error               string    `json:"error,omitempty"`
-
-	json_message        []byte    // JSON message from IPC channel if IPC event
-}
-
 /*
  * exit codes:
  * - streamlink twitch user offline: ................. 1
@@ -324,7 +303,7 @@ func (player *Player) start_ipc() error {
 			if strings.Contains(string(data), ignore) { continue }
 			//fmt.Println(string(data),"#")
 			status := &PlayerStatus{
-				json_message : data,
+				//json_message : data,
 			}
 			player.Status <- status
 		}
