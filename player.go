@@ -65,14 +65,30 @@ type PlayerStatus struct {
  * - bash command not found: ....................... 127
  */
 
-func NewPlayer(config *PlayerConfig) *Player {
-	player := &Player{
-		config   : config,
-		Control  : make(chan []byte, 32),
-		Status   : make(chan *PlayerStatus, 64),
+func PlayerStart(config *PlayerConfig) <-chan cmd.Status {
+	player_cmd      := "streamlink"
+	var player_args  = []string{}
+	mpv_args        := config.mpv_args[:]
+
+	if len(config.ipc_pipe) > 0 {
+		mpv_args = append(mpv_args, "--input-ipc-server=" + config.ipc_pipe)
 	}
-	go player.run()
-	return player
+
+	if config.use_streamlink {
+		player_args = append(player_args, config.streamlink_args...)
+		player_args = append(player_args, "-a", strings.Join(mpv_args," "), config.location, "best")
+	} else {
+		player_cmd  = "mpv"
+		player_args = append(player_args, mpv_args...)
+		player_args = append(player_args, config.location)
+	}
+
+	//fmt.Println(config.mpv_args)
+	//fmt.Println(player_cmd, "\""+strings.Join(player_args,"\" \"")+"\"")
+
+	cmdOptions := cmd.Options{ Buffered:  false, Streaming: false }
+	cmd        := cmd.NewCmdOptions(cmdOptions, player_cmd, player_args...)
+	return cmd.Start()
 }
 
 func (player *Player) control(msg []byte) {
