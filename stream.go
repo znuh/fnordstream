@@ -11,6 +11,13 @@ import (
 	"github.com/go-cmd/cmd"
 )
 
+type StreamState int
+const (
+	Stopped           StreamState = iota
+	Started
+	IPC_Connected
+)
+
 type StreamCtl struct {
 	cmd       string
 	val       string
@@ -23,6 +30,8 @@ type Stream struct {
 
 	player_cfg              *PlayerConfig
 
+	state                    StreamState
+
 	ctl_chan                 chan *StreamCtl
 	user_shutdown            bool
 
@@ -30,8 +39,9 @@ type Stream struct {
 	cmd_status             <-chan cmd.Status   // player cmd.Status
 	restart_pending          bool
 
-	ipc_reconnect_ch       <-chan time.Time
-	ipc_reconnect_ticker    *time.Ticker
+	ticker_ch              <-chan time.Time
+	ticker                  *time.Ticker
+
 	ipc_conn                 net.Conn
 }
 
@@ -99,9 +109,9 @@ func (stream * Stream) run() {
 			case cmd_status := <- stream.cmd_status:
 				stream.player_stopped(&cmd_status)
 
-			// IPC reconnect timer
-			case _ = <-stream.ipc_reconnect_ch:           // try connecting to IPC
-				stream.player_ipc_start()
+			// timer
+			case _ = <-stream.ticker_ch:
+				stream.ticker_evt()
 
 			// TODO: player status, IPC, reconnect timer?
 
@@ -109,6 +119,19 @@ func (stream * Stream) run() {
 	 } // for loop
 	stream.player_stop()
 }
+
+func (stream *Stream) ticker_evt() {
+	//TBD
+}
+
+/*
+func (stream *Stream) shutdown_ticker() {
+	if stream.ipc_reconnect_ch == nil { return }
+	stream.ipc_reconnect_ticker.Stop()
+	stream.ipc_reconnect_ticker = nil
+	stream.ipc_reconnect_ch     = nil
+}
+*/
 
 func (stream *Stream) player_ipc_start() error {
 	ipc_conn, err := dial_pipe(stream.player_cfg.ipc_pipe)
@@ -125,9 +148,7 @@ func (stream *Stream) player_ipc_start() error {
 	}
 
 	// stop IPC reconnect timer
-	stream.ipc_reconnect_ticker.Stop()
-	stream.ipc_reconnect_ticker = nil
-	stream.ipc_reconnect_ch     = nil
+	//stream.dismiss_ipc_reconnect()
 
 	//stream.status_wg.Add(1)            // prevent close() of Status channel while we're using it
 
@@ -200,9 +221,13 @@ func (stream * Stream) player_start() {
 	cmd               := cmd.NewCmdOptions(cmdOptions, player_cmd, player_args...)
 	stream.cmd_status  = cmd.Start()
 
-	// schedule IPC reconnect
-	stream.ipc_reconnect_ticker = time.NewTicker(time.Millisecond * 100)
-	stream.ipc_reconnect_ch     = stream.ipc_reconnect_ticker.C
+	// TODO: schedule IPC reconnect
+	/*
+	if stream.ipc_reconnect_ch == nil {
+		stream.ipc_reconnect_ticker = time.NewTicker(time.Millisecond * 100)
+		stream.ipc_reconnect_ch     = stream.ipc_reconnect_ticker.C
+	}
+	*/
 
 	/* TODO: send player status update */
 	//player.Status <- &PlayerStatus{Status : "started"}
