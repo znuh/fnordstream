@@ -142,40 +142,43 @@ func (stream * Stream) state_change(new_state StreamState, cmd_status *cmd.Statu
 
 	stream.ticker_stop()  // stop ticker first, restart if necessary
 
-	// TODO: restarting state?
 	stream.state = new_state
 
-	delay := time.Duration(-1)
+	if (stream.state == ST_IPC_Connected) { return }   // nothing to do
 
-	switch stream.state {
-	case ST_Started:
-		delay = time.Millisecond * 100    // IPC reconnect ticker
-	case ST_Stopped:
-		// TODO: optional restart, delay depending on exit reason
-		// restart = time.Millisecond
-		delay = stream.player_cfg.restart_error_delay
-	default:
+	player_status := &PlayerStatus{}
+	delay         := time.Duration(-1)
+
+	if stream.state == ST_Started {
+		player_status.Status = "started"
+		delay                = time.Millisecond * 100    // IPC reconnect ticker
+	} else if stream.state == ST_Stopped {
+		player_status.Status = "stopped"
+		if cmd_status != nil {
+			player_status.Exit_code = cmd_status.Exit
+			if cmd_status.Error != nil {
+				player_status.Error = cmd_status.Error.Error()
+			}
+			// TODO: optional restart, delay depending on exit reason
+			// restart = time.Millisecond
+			delay = stream.player_cfg.restart_error_delay
+		}
+		// TODO: restarting
 	}
-
-	// TODO: restarting state?
 
 	if delay > 0 {
 		stream.ticker    = time.NewTicker(delay)
 		stream.ticker_ch = stream.ticker.C
 	}
 
-	/* TODO: send player status update */
-	// TODO: player_status
-/*
-	status := &Notification{
+	json_msg, _ := json.Marshal(player_status)
+	note := &Notification{
 		stream_idx   : stream.stream_idx,
 		notification : "player_status",
 		payload      : player_status,
-		json_message : json.Marshal(status),
+		json_message : json_msg,
 	}
-	stream.notifications <- status
-*/
-	//player.Status <- &PlayerStatus{Status : "started"}
+	stream.notifications <- note
 }
 
 func (stream *Stream) ticker_evt() {
