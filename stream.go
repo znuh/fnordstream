@@ -114,14 +114,15 @@ func (stream * Stream) run() {
 			case _ = <-stream.ticker_ch:
 				stream.ticker_evt()
 
-			// forward player events
+			/* use an extra channel and forward player events here
+			 * this is done to prevent player events arriving after
+			 * the player has been stopped */
 			case player_evt, ok := <-stream.player_events:
 				if ok { 
 					stream.notifications <- player_evt 
 				} else {
-					// TODO: handle player evt channel closed?
-					fmt.Println("player_evt channel closed", stream.stream_idx)
-					stream.player_events = nil
+					//fmt.Println("player_evt channel closed", stream.stream_idx)
+					stream.ipc_shutdown()
 				}
 
 		} // select
@@ -300,6 +301,14 @@ func mux_player(send chan<- *Notification, player *Player, stream_idx int) {
 }
 */
 
+func (stream *Stream) ipc_shutdown() {
+	if stream.ipc_conn != nil {
+		stream.ipc_conn.Close()
+		stream.ipc_conn      = nil
+		stream.player_events = nil
+	}
+}
+
 func (stream *Stream) ipc_start() (<-chan *Notification, error) {
 	ipc_conn, err := dial_pipe(stream.player_cfg.ipc_pipe)
 	stream.ipc_conn = ipc_conn
@@ -343,8 +352,12 @@ func (stream *Stream) ipc_start() (<-chan *Notification, error) {
 				payload      : payload,
 				json_message : json_message,
 			}
-			// TODO: prevent stopped players from sending notifications?
-			notes <- status
+			/* non-blocking send to avoid non-responsive goroutine
+			 * once the channel receiver in stream.run() is gone */
+			select {
+				case notes <- status: // drop if channel full
+				default:
+			}
 		}
 
 		//if err := scanner.Err(); err != nil {
