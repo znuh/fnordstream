@@ -329,6 +329,7 @@ func (stream *Stream) ipc_start() (<-chan *Notification, error) {
 	// state update
 	stream.state_change(ST_IPC_Connected)
 
+	// receiver goroutine
 	go func() {
 
 		defer func() {
@@ -359,10 +360,6 @@ func (stream *Stream) ipc_start() (<-chan *Notification, error) {
 				default:
 			}
 		}
-
-		//if err := scanner.Err(); err != nil {
-			//log.Println(err)
-		//}
 	}() // receiver goroutine
 
 	return notes, err
