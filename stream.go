@@ -43,6 +43,7 @@ type Stream struct {
 	ticker                  *time.Ticker
 
 	ipc_conn                 net.Conn
+	player_events          <-chan *Notification
 }
 
 /* user interface */
@@ -113,16 +114,27 @@ func (stream * Stream) run() {
 			case _ = <-stream.ticker_ch:
 				stream.ticker_evt()
 
-			// TODO: IPC
+			// forward player events
+			case player_evt, ok := <-stream.player_events:
+				if ok { 
+					stream.notifications <- player_evt 
+				} else {
+					// TODO: handle player evt channel closed?
+					fmt.Println("player_evt channel closed", stream.stream_idx)
+					stream.player_events = nil
+				}
 
 		} // select
 	 } // for loop
 	stream.player_stop()
+	// TODO: shutdown
 }
+
+// TODO: IPC control, IPC shutdown
 
 func (stream *Stream) ticker_evt() {
 	if stream.state == ST_Started {
-		stream.ipc_start()
+		stream.player_events, _ = stream.ipc_start()
 	} else if stream.state == ST_Stopped {
 		stream.player_start()
 	} else {
@@ -183,8 +195,16 @@ func (stream * Stream) state_change(new_state StreamState) {
 	//player.Status <- &PlayerStatus{Status : "started"}
 }
 
+/*
+ * player exit codes:
+ * - streamlink twitch user offline: ................. 1
+ * - streamlink mpv twitch play until user quits mpv:  0
+ * - mpv twitch user offline: ........................ 2
+ * - mpv twitch play until user quits mpv:             0
+ * - bash command not found: ....................... 127
+ */
 func (stream * Stream) player_stopped(cmd_status *cmd.Status) {
-	// TBD
+	// TBD: cmd_status.Exit, etc.
 	stream.state_change(ST_Stopped)
 }
 
@@ -229,6 +249,7 @@ func (stream * Stream) player_start() {
 
 func (stream * Stream) player_stop() {
 	if stream.cmd_status == nil { return }
+	//player.control([]byte(`{"command":["quit"]}`+"\n"))
 	//close(stream.player.Control)
 	//stream.player = nil
 	stream.restart_pending = false
@@ -247,6 +268,7 @@ func (stream * Stream) player_ctl(ctl *StreamCtl) {
 		//case stream.player.Control <- []byte(str):
 		default:
 	}
+	//player.ipc_conn.Write(msg)
 }
 
 /*
@@ -278,10 +300,10 @@ func mux_player(send chan<- *Notification, player *Player, stream_idx int) {
 }
 */
 
-func (stream *Stream) ipc_start() error {
+func (stream *Stream) ipc_start() (<-chan *Notification, error) {
 	ipc_conn, err := dial_pipe(stream.player_cfg.ipc_pipe)
 	stream.ipc_conn = ipc_conn
-	if err != nil { return err }
+	if err != nil { return nil, err }
 
 	// TODO: move to goroutine?
 	err = player_observe_properties(&ipc_conn)
@@ -289,20 +311,20 @@ func (stream *Stream) ipc_start() error {
 		ipc_conn.Close()
 		stream.ipc_conn = nil
 		//log.Println(err)
-		return err
+		return nil, err
 	}
 	ipc_conn.SetWriteDeadline(time.Time{})
 
+	notes := make(chan *Notification, 8)
+
 	// state update
 	stream.state_change(ST_IPC_Connected)
-
-	//stream.status_wg.Add(1)            // prevent close() of Status channel while we're using it
 
 	go func() {
 
 		defer func() {
 			ipc_conn.Close()           // Multiple goroutines may invoke methods on a Conn simultaneously.
-			//stream.status_wg.Done()    // allow close() of Status channel
+			close(notes)
 		}()
 
 		const ignore = `"request_id":0,"error":"success"}`
@@ -322,7 +344,7 @@ func (stream *Stream) ipc_start() error {
 				json_message : json_message,
 			}
 			// TODO: prevent stopped players from sending notifications?
-			stream.notifications <- status
+			notes <- status
 		}
 
 		//if err := scanner.Err(); err != nil {
@@ -330,7 +352,7 @@ func (stream *Stream) ipc_start() error {
 		//}
 	}() // receiver goroutine
 
-	return err
+	return notes, err
 }
 
 func player_observe_properties(conn *net.Conn) error {
@@ -365,7 +387,7 @@ func player_observe_properties(conn *net.Conn) error {
 	for _, p := range mpv_properties {
 		msg = append(msg, "{\"command\":[\"observe_property\",0,\""+p+"\"]}\n"...)
 	}
-	(*conn).SetWriteDeadline(time.Now().Add(10 * time.Millisecond))
+	(*conn).SetWriteDeadline(time.Now().Add(100 * time.Millisecond))
 	_, err := (*conn).Write(msg)
 	return err
 }

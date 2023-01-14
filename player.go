@@ -35,15 +35,6 @@ type Player struct {
 	ipc_conn                 net.Conn
 }
 
-/*
- * exit codes:
- * - streamlink twitch user offline: ................. 1
- * - streamlink mpv twitch play until user quits mpv:  0
- * - mpv twitch user offline: ........................ 2
- * - mpv twitch play until user quits mpv:             0
- * - bash command not found: ....................... 127
- */
-
 func PlayerStart(config *PlayerConfig) <-chan cmd.Status {
 	player_cmd      := "streamlink"
 	var player_args  = []string{}
