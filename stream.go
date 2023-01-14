@@ -33,9 +33,11 @@ type Stream struct {
 	state                    StreamState
 
 	ctl_chan                 chan *StreamCtl
+	//shutdown                 chan struct{}
 	user_shutdown            bool
 
 	// Player stuff
+	player_cmd              *cmd.Cmd
 	cmd_status             <-chan cmd.Status   // player cmd.Status
 	restart_pending          bool
 
@@ -55,6 +57,7 @@ func NewStream(notifications chan<- *Notification, stream_idx int, player_cfg *P
 		player_cfg    : player_cfg,
 
 		ctl_chan      : make(chan *StreamCtl, 16),
+		//shutdown      : make(chan struct{}),
 	}
 	go stream.run()
 	return stream
@@ -79,7 +82,7 @@ func (stream * Stream) Shutdown() {
 	if stream.user_shutdown { return }
 	stream.user_shutdown = true
 	close(stream.ctl_chan)
-	// TODO: wait?
+	// TODO: wait? (blocking read on shutdown channel)
 }
 
 /* internal stuff
@@ -87,16 +90,15 @@ func (stream * Stream) Shutdown() {
 
 /* started in goroutine from NewStream() */
 func (stream * Stream) run() {
-	shutdown       := false
 
-	for !shutdown {
+	for stream.ctl_chan != nil {
 
 		select {
 
 			// control channel from StreamHub
 			case ctl, ok := <- stream.ctl_chan:
 				if !ok {
-					shutdown = true
+					stream.ctl_chan = nil
 					break;
 				}
 
@@ -108,6 +110,7 @@ func (stream * Stream) run() {
 
 			// command status channel for player command (fires on player exit)
 			case cmd_status := <- stream.cmd_status:
+				stream.cmd_status = nil
 				stream.player_stopped(&cmd_status)
 
 			// timer
@@ -128,10 +131,7 @@ func (stream * Stream) run() {
 		} // select
 	 } // for loop
 	stream.player_stop()
-	// TODO: shutdown
 }
-
-// TODO: IPC control, IPC shutdown
 
 func (stream *Stream) ticker_evt() {
 	if stream.state == ST_Started {
@@ -241,35 +241,35 @@ func (stream * Stream) player_start() {
 	//fmt.Println(player_cmd, "\""+strings.Join(player_args,"\" \"")+"\"")
 
 	cmdOptions        := cmd.Options{ Buffered:  false, Streaming: false }
-	cmd               := cmd.NewCmdOptions(cmdOptions, player_cmd, player_args...)
-	stream.cmd_status  = cmd.Start()
+	stream.player_cmd  = cmd.NewCmdOptions(cmdOptions, player_cmd, player_args...)
+	stream.cmd_status  = stream.player_cmd.Start()
 
 	// schedule IPC (re)connect
 	stream.state_change(ST_Started)
 }
 
 func (stream * Stream) player_stop() {
-	if stream.cmd_status == nil { return }
-	//player.control([]byte(`{"command":["quit"]}`+"\n"))
-	//close(stream.player.Control)
-	//stream.player = nil
-	stream.restart_pending = false
+	if stream.state == ST_Stopped { return }
+	stream.player_ctl(&StreamCtl{cmd:"quit"})
+	stream.ipc_shutdown()
+	if stream.player_cmd != nil {
+		stream.player_cmd.Stop()
+		stream.player_cmd = nil
+	}
+	stream.state_change(ST_Stopped)
+	stream.restart_pending = false // TODO: ???
 }
 
 func (stream * Stream) player_ctl(ctl *StreamCtl) {
 	var str string
-	//if stream.player == nil { return }
-	if ctl.cmd == "seek" {
-		str = fmt.Sprintf(`{"command":["osd-msg-bar","%s","%s"]}`+"\n",ctl.cmd,ctl.val)
-	} else {
-		str = fmt.Sprintf(`{"command":["osd-msg-bar","set","%s","%s"]}`+"\n",ctl.cmd,ctl.val)
+	if stream.ipc_conn == nil { return }
+	switch ctl.cmd {
+	case "quit" : str = `{"command":["quit"]}`+"\n"
+	case "seek" : str = fmt.Sprintf(`{"command":["osd-msg-bar","%s","%s"]}`+"\n",ctl.cmd,ctl.val)
+	default     : str = fmt.Sprintf(`{"command":["osd-msg-bar","set","%s","%s"]}`+"\n",ctl.cmd,ctl.val)
 	}
-	str=str
-	select {
-		//case stream.player.Control <- []byte(str):
-		default:
-	}
-	//player.ipc_conn.Write(msg)
+	stream.ipc_conn.SetWriteDeadline(time.Now().Add(100 * time.Millisecond))
+	stream.ipc_conn.Write([]byte(str))
 }
 
 /*
