@@ -32,6 +32,7 @@ type Stream struct {
 
 	state                    StreamState
 
+	// stuff used by public Control/Start/Stop/Shutdown methods
 	ctl_chan                 chan *StreamCtl
 	//shutdown                 chan struct{}
 	user_shutdown            bool
@@ -41,9 +42,11 @@ type Stream struct {
 	cmd_status             <-chan cmd.Status   // player cmd.Status
 	restart_pending          bool
 
+	// ticker for player/IPC restart
 	ticker_ch              <-chan time.Time
 	ticker                  *time.Ticker
 
+	// IPC connection to player
 	ipc_conn                 net.Conn
 	player_events          <-chan *Notification
 }
@@ -133,29 +136,9 @@ func (stream * Stream) run() {
 	stream.player_stop()
 }
 
-func (stream *Stream) ticker_evt() {
-	if stream.state == ST_Started {
-		stream.player_events, _ = stream.ipc_start()
-	} else if stream.state == ST_Stopped {
-		stream.player_start()
-	} else {
-		// shouldn't happend
-		fmt.Println("stream: spurious ticker evt!", "state:", stream.state)
-		stream.ticker_stop()
-	}
-}
+func (stream * Stream) state_change(new_state StreamState, cmd_status *cmd.Status) {
 
-func (stream *Stream) ticker_stop() {
-	if stream.ticker_ch != nil {
-		stream.ticker.Stop()
-		stream.ticker    = nil
-		stream.ticker_ch = nil
-	}
-}
-
-func (stream * Stream) state_change(new_state StreamState) {
-
-	if stream.state == new_state { return }   // nothing to do
+	if (stream.state == new_state) && (cmd_status == nil) { return }   // nothing to do
 
 	stream.ticker_stop()  // stop ticker first, restart if necessary
 
@@ -171,7 +154,6 @@ func (stream * Stream) state_change(new_state StreamState) {
 		// TODO: optional restart, delay depending on exit reason
 		// restart = time.Millisecond
 		delay = stream.player_cfg.restart_error_delay
-		// TODO: cleanup IPC connection here?
 	default:
 	}
 
@@ -196,6 +178,26 @@ func (stream * Stream) state_change(new_state StreamState) {
 	//player.Status <- &PlayerStatus{Status : "started"}
 }
 
+func (stream *Stream) ticker_evt() {
+	if stream.state == ST_Started {
+		stream.player_events, _ = stream.ipc_start()
+	} else if stream.state == ST_Stopped {
+		stream.player_start()
+	} else {
+		// shouldn't happend
+		fmt.Println("stream: spurious ticker evt!", "state:", stream.state)
+		stream.ticker_stop()
+	}
+}
+
+func (stream *Stream) ticker_stop() {
+	if stream.ticker_ch != nil {
+		stream.ticker.Stop()
+		stream.ticker    = nil
+		stream.ticker_ch = nil
+	}
+}
+
 /*
  * player exit codes:
  * - streamlink twitch user offline: ................. 1
@@ -205,8 +207,8 @@ func (stream * Stream) state_change(new_state StreamState) {
  * - bash command not found: ....................... 127
  */
 func (stream * Stream) player_stopped(cmd_status *cmd.Status) {
-	// TBD: cmd_status.Exit, etc.
-	stream.state_change(ST_Stopped)
+	stream.ipc_shutdown()
+	stream.state_change(ST_Stopped, cmd_status)
 }
 
 func (stream * Stream) player_start() {
@@ -245,9 +247,10 @@ func (stream * Stream) player_start() {
 	stream.cmd_status  = stream.player_cmd.Start()
 
 	// schedule IPC (re)connect
-	stream.state_change(ST_Started)
+	stream.state_change(ST_Started, nil)
 }
 
+/* user requested stop or implicit stop for restart (invoked from player_start in latter case) */
 func (stream * Stream) player_stop() {
 	if stream.state == ST_Stopped { return }
 	stream.player_ctl(&StreamCtl{cmd:"quit"})
@@ -256,8 +259,8 @@ func (stream * Stream) player_stop() {
 		stream.player_cmd.Stop()
 		stream.player_cmd = nil
 	}
-	stream.state_change(ST_Stopped)
-	stream.restart_pending = false // TODO: ???
+	stream.state_change(ST_Stopped, nil)
+	stream.restart_pending = false
 }
 
 func (stream * Stream) player_ctl(ctl *StreamCtl) {
@@ -327,7 +330,7 @@ func (stream *Stream) ipc_start() (<-chan *Notification, error) {
 	notes := make(chan *Notification, 8)
 
 	// state update
-	stream.state_change(ST_IPC_Connected)
+	stream.state_change(ST_IPC_Connected, nil)
 
 	// receiver goroutine
 	go func() {
