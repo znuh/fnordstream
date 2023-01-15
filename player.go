@@ -103,7 +103,7 @@ func player_quit_event(player *Player, cmd_status *cmd.Status) {
 	/* send player status update */
 	status := &PlayerStatus{
 		Status     : "stopped",
-		Exit_code  : cmd_status.Exit,
+		Exit_code  : &cmd_status.Exit,
 	}
 	if cmd_status.Error != nil {
 		status.Error = cmd_status.Error.Error()

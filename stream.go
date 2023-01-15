@@ -5,25 +5,16 @@ import (
 	"fmt"
 	"time"
 	"bufio"
-	//"sync"
 	"strings"
 	"encoding/json"
 	"github.com/go-cmd/cmd"
 )
-/*
-type UserIntent int
-const (
-	UI_Stop              UserIntent = iota
-	UI_Start
-	UI_Restart
-)
-*/
+
 type StreamState int
 const (
 	ST_Stopped           StreamState = iota
 	ST_Started
 	ST_IPC_Connected
-	//ST_Stopping
 )
 
 type StreamCtl struct {
@@ -39,7 +30,6 @@ type Stream struct {
 	player_cfg              *PlayerConfig
 
 	state                    StreamState
-	//user_intent              UserIntent
 
 	// stuff used by public Control/Start/Stop/Shutdown methods
 	ctl_chan                 chan *StreamCtl
@@ -49,7 +39,8 @@ type Stream struct {
 	// Player stuff
 	player_cmd              *cmd.Cmd
 	cmd_status             <-chan cmd.Status   // player cmd.Status
-	user_restart             bool
+	user_restart             bool              // user triggered restart (overrides auto-restart conditions)
+	user_stopped             bool              // user stopped -> disable restarts until user starts stream again
 
 	// ticker for player/IPC restart
 	ticker_ch              <-chan time.Time
@@ -116,7 +107,7 @@ func (stream * Stream) run() {
 
 				switch ctl.cmd {
 					case "start" : stream.player_start()
-					case "stop"  : stream.player_stop(false)
+					case "stop"  : stream.player_stop(false, true)
 					default      : stream.player_ctl(ctl)
 				}
 
@@ -142,7 +133,7 @@ func (stream * Stream) run() {
 
 		} // select
 	 } // for loop
-	stream.player_stop(false)
+	stream.player_stop(false, true)
 }
 
 /* sends state change notifications & sets ticker for player start / IPC reconnect
@@ -188,14 +179,17 @@ func (stream * Stream) state_change(new_state StreamState, cmd_status *cmd.Statu
 		if cmd_status != nil {
 
 			// copy player exit status to notification
-			player_status.Exit_code = cmd_status.Exit
+			exit_code := cmd_status.Exit
+			player_status.Exit_code = &exit_code
 			if cmd_status.Error != nil {
 				player_status.Error = cmd_status.Error.Error()
 			}
 
 			// restart player?
 			config := stream.player_cfg
-			if stream.user_restart || ((cmd_status.Exit == 0) && config.restart_user_quit) {
+			//fmt.Println("restart?", stream.user_restart, stream.user_stopped, cmd_status.Exit, config.restart_user_quit, config.restart_error_delay)
+			if stream.user_stopped { // don't restart
+			} else if stream.user_restart || ((cmd_status.Exit == 0) && config.restart_user_quit) {
 				delay = time.Millisecond * 10
 			} else if (cmd_status.Exit > 0) && (cmd_status.Exit < 127) {
 				delay = config.restart_error_delay
@@ -256,9 +250,12 @@ func (stream * Stream) player_stopped(cmd_status *cmd.Status) {
 /* only triggered by user action:
  * - explicit stop (don't restart)
  * - implicit stop for restart (invoked from player_start in latter case) */
-func (stream * Stream) player_stop(user_restart bool) {
+func (stream * Stream) player_stop(user_restart bool, user_stopped bool) {
 	stream.user_restart = user_restart
+	stream.user_stopped = user_stopped
+
 	if stream.state == ST_Stopped { return }
+
 	stream.player_ctl(&StreamCtl{cmd:"quit"})
 	stream.ipc_shutdown()
 	if stream.player_cmd != nil {
@@ -274,12 +271,13 @@ func (stream * Stream) player_start() {
 
 	// restart?
 	if stream.state != ST_Stopped {
-		stream.player_stop(true)
+		stream.player_stop(true, false)
 		return
 	}
 
-	// clear user_restart (if set)
+	// clear user_restart and user_stopped (if set)
 	stream.user_restart = false
+	stream.user_stopped = false
 
 	config          := stream.player_cfg
 	player_cmd      := "streamlink"
@@ -321,35 +319,6 @@ func (stream * Stream) player_ctl(ctl *StreamCtl) {
 	stream.ipc_conn.SetWriteDeadline(time.Now().Add(100 * time.Millisecond))
 	stream.ipc_conn.Write([]byte(str))
 }
-
-/*
-func mux_player(send chan<- *Notification, player *Player, stream_idx int) {
-	for {
-		status, ok := <-player.Status
-		if !ok { break }
-
-		json_message := status.json_message
-		note_type    := "player_event"
-		var payload interface{}
-		if json_message != nil {
-			_ = json.Unmarshal(json_message, &payload)
-		} else {
-			note_type       = "player_status"
-			json_message, _ = json.Marshal(status)
-			payload         = status
-		}
-		note := Notification{
-			stream_idx    : stream_idx,
-			notification  : note_type,
-			payload       : payload,
-			json_message  : json_message,
-		}
-		//fmt.Println(note)
-		send <- &note
-	} // for !closed
-	//fmt.Println("mux_player done")
-}
-*/
 
 /* shutdown IPC connection (if not yet done) */
 func (stream *Stream) ipc_shutdown() {

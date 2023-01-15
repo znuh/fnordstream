@@ -31,8 +31,6 @@ type PlayerConfig struct {
 
 type PlayerStatus struct {
 	Status              string    `json:"status"`
-	Exit_code           int       `json:"exit_code"`
+	Exit_code           *int      `json:"exit_code,omitempty"`
 	Error               string    `json:"error,omitempty"`
-
-//	json_message        []byte    // JSON message from IPC channel if IPC event
 }
