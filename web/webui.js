@@ -262,12 +262,14 @@ function replace_child(list,id,ext) {
 }
 
 function draw_viewports() {
+	const lightmode = document.getElementById('lightSwitch').checked;
 	const cv      = document.getElementById("viewports");
 	const ctx     = cv.getContext("2d");
+	cv.style["mix-blend-mode"] = lightmode ? 'darken' : 'lighten';
 	ctx.textAlign = 'center';
 
 	/* clear canvas */
-	ctx.fillStyle='#ffffff';
+	ctx.fillStyle = lightmode ? '#ffffff' : '#000000';
 	ctx.fillRect(0, 0, cv.width, cv.height);
 
 	for (let i=0;i<viewports.length;i++) {
@@ -275,17 +277,18 @@ function draw_viewports() {
 
 		//ctx.fillStyle='#aaaaaa';
 		//ctx.fillRect(3.5+geo.x/8, 0.5+geo.y/8, geo.w/8, geo.h/8);
-		ctx.strokeStyle = "#000000";
+		ctx.strokeStyle = lightmode ? "#000000" : "#ffffff";
 		ctx.strokeRect(3.5+geo.x/8, 0.5+geo.y/8, geo.w/8, geo.h/8);
 
 		const font_h  = geo.h/16;
-		ctx.fillStyle = "#000000";
+		ctx.fillStyle = lightmode ? "#000000" : "#ffffff";
 		ctx.font      = font_h+'px sans-serif';
 		ctx.fillText(i, 3.5+geo.x/8 + geo.w/16, (geo.y/8)+(geo.h/16)+(font_h/2)-2, geo.w/8);
 	}
 }
 
 function draw_displays() {
+	const lightmode = document.getElementById('lightSwitch').checked;
 
 	let w_ext=0, h_ext=0
 	for (let i=0;i<displays.length;i++) {
@@ -306,16 +309,16 @@ function draw_displays() {
 	ctx.font = font_h+'px sans-serif';
 	ctx.textAlign = 'center';
 
-	ctx.fillStyle='#ffffff';
+	ctx.fillStyle = lightmode ? '#ffffff' : '#000000';
 	ctx.fillRect(0, 0, cv.width, cv.height);
 
 	for (let i=0;i<displays.length;i++) {
 		const geo = displays[i].geo;
-		ctx.fillStyle='#dddddd';
+		ctx.fillStyle = lightmode ? '#dddddd' : '#666666';
 		ctx.fillRect(3.5+geo.x/8, 0.5+geo.y/8, geo.w/8, geo.h/8);
-		ctx.strokeStyle="#000000";
+		ctx.strokeStyle = lightmode ? "#000000" : "#ffffff";
 		ctx.strokeRect(3.5+geo.x/8, 0.5+geo.y/8, geo.w/8, geo.h/8);
-		ctx.fillStyle='#000000';
+		ctx.fillStyle = lightmode ? "#000000" : "#ffffff";
 		ctx.fillText(displays[i].name, 3.5+geo.x/8 + geo.w/16, (geo.y/8)+(geo.h/8)+font_h-2, geo.w/8);
 	}
 

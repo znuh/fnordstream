@@ -23,6 +23,7 @@
     } else {
       document.documentElement.setAttribute('data-bs-theme', theme)
     }
+    draw_displays()
   }
 
   setTheme(getPreferredTheme())
