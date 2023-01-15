@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"regexp"
+	"strconv"
 	"runtime"
 	"encoding/json"
 	"github.com/mitchellh/mapstructure"
@@ -99,28 +101,33 @@ func suggest_viewports(hub *StreamHub, client *Client, request map[string]interf
 }
 
 /* start playing all streams */
-func start_streams_req(hub *StreamHub, client *Client, request map[string]interface {}) {
+func start_streams(hub *StreamHub, client *Client, request map[string]interface {}) {
 
 	if hub.streams_playing { return }
+
+	// sanitize location
+	re := regexp.MustCompile(`[^a-zA-Z0-9-_/:.,?&@=#%]`)
 
 	/* check & adopt stream list */
 	streamlist, ok := request["streams"].([]interface{})
 	if !ok { return }
-	streams := []string{}
-	for _, s := range streamlist {
-		stream, ok := s.(string)
+	locations := []string{}
+	for _, loc := range streamlist {
+		location, ok := loc.(string)
 		if !ok { return }
-		streams = append(streams, stream)
+		location  = re.ReplaceAllString(location, "")
+		if len(location) < 1 { return }
+		locations = append(locations, location)
 	}
 
 	/* check & adopt viewports */
 	viewports := []Geometry{}
 	mapstructure.Decode(request["viewports"], &viewports)
-	if len(viewports) < len(streams) {
+	if len(viewports) < len(locations) {
 		viewports = hub.viewports
 	}
-	if len(viewports) < len(streams) {
-		viewports = auto_layout(hub, len(streams))
+	if len(viewports) < len(locations) {
+		viewports = auto_layout(hub, len(locations))
 	}
 
 	/* check & adopt options */
@@ -129,25 +136,67 @@ func start_streams_req(hub *StreamHub, client *Client, request map[string]interf
 	mapstructure.Decode(request["options"], &options)
 
 	hub.streams_playing   = true
-	hub.stream_locations  = streams
+	hub.stream_locations  = locations
 	hub.viewports         = viewports
 	hub.playback_options  = options
 
+	hub.streams           = make([]*Stream, len(hub.stream_locations))
+
 	global_status(hub, nil, nil) /* signal playing mode to all clients - TODO: add more info */
 
-	/* start players */
-	for idx, _ := range hub.stream_locations {
-		stream_start(hub, idx)
+	/* start streams */
+	for idx, location := range hub.stream_locations {
+		/* build player config */
+		mpv_args := []string{
+			"--mute=yes",
+			"--border=no",
+			"--really-quiet",
+			"--geometry=" + hub.viewports[idx].String(),
+		}
+		streamlink_args := []string{
+			"--player=mpv",
+			"--player-fifo",
+			//"-v", // verbose player
+		}
+
+		if !options["start_muted"] {
+			mpv_args[0] = "--mute=no"
+		}
+
+		config := &PlayerConfig{
+			mpv_args            : mpv_args,
+			location            : location,
+			ipc_pipe            : hub.pipe_prefix + strconv.Itoa(idx),
+			restart_error_delay : -1,
+		}
+
+		if options["restart_error"] {
+			config.restart_error_delay = hub.restart_error_delay
+		}
+		config.restart_user_quit = options["restart_user_quit"]
+		config.use_streamlink    = options["use_streamlink"]
+		if config.use_streamlink {
+			if options["twitch-disable-ads"] {
+				streamlink_args = append(streamlink_args, "--twitch-disable-ads")
+			}
+			config.streamlink_args = streamlink_args
+		}
+
+		stream           := NewStream(hub.notifications, idx, config)
+		hub.streams[idx]  = stream
+		stream.Start()
 	}
 }
 
 /* stop playing completely */
-func stop_streams_req(hub *StreamHub, client *Client, request map[string]interface {}) {
+func stop_streams(hub *StreamHub, client *Client, request map[string]interface {}) {
 
 	if !hub.streams_playing { return }
 
-	for idx, _ := range hub.stream_locations {
-		stream_stop(hub, idx)
+	for idx, stream := range hub.streams {
+		if stream == nil { continue }
+		stream.Shutdown()
+		hub.streams[idx] = nil
 	}
 
 	hub.streams_playing   = false
@@ -155,29 +204,33 @@ func stop_streams_req(hub *StreamHub, client *Client, request map[string]interfa
 }
 
 /* start single stream */
-func start_stream_req(hub *StreamHub, client *Client, request map[string]interface {}) {
+func start_stream(hub *StreamHub, client *Client, request map[string]interface {}) {
 	if !hub.streams_playing { return }
 
 	tmp, ok := request["stream"].(float64)
 	if !ok { return }
 
-	stream := int(tmp)
-	if stream < 0 || stream >= len(hub.stream_locations) { return }
+	stream_idx := int(tmp)
+	if stream_idx < 0 || stream_idx >= len(hub.stream_locations) { return }
 
-	stream_start(hub, stream)
+	stream := hub.streams[stream_idx]
+	if stream == nil { return }
+	stream.Start()
 }
 
 /* stop single stream */
-func stop_stream_req(hub *StreamHub, client *Client, request map[string]interface {}) {
+func stop_stream(hub *StreamHub, client *Client, request map[string]interface {}) {
 	if !hub.streams_playing { return }
 
 	tmp, ok := request["stream"].(float64)
 	if !ok { return }
 
-	stream := int(tmp)
-	if stream < 0 || stream >= len(hub.stream_locations) { return }
+	stream_idx := int(tmp)
+	if stream_idx < 0 || stream_idx >= len(hub.stream_locations) { return }
 
-	stream_stop(hub, stream)
+	stream := hub.streams[stream_idx]
+	if stream == nil { return }
+	stream.Stop()
 }
 
 func global_status(hub *StreamHub, client *Client, request map[string]interface {}) {
@@ -187,14 +240,20 @@ func global_status(hub *StreamHub, client *Client, request map[string]interface 
 	send_response(hub.notifications, client, "global_status", &note)
 }
 
-func stream_ctl_req(hub *StreamHub, client *Client, request map[string]interface {}) {
+func stream_ctl(hub *StreamHub, client *Client, request map[string]interface {}) {
+	var allowed_ctls = map[string]bool{
+		"volume" : true,
+		"seek"   : true,
+		"mute"   : true,
+	}
+
 	if !hub.streams_playing { return }
 
 	tmp, ok := request["stream"].(float64)
 	if !ok { return }
 
-	stream := int(tmp)
-	if stream < 0 || stream >= len(hub.stream_locations) { return }
+	stream_idx := int(tmp)
+	if stream_idx < 0 || stream_idx >= len(hub.stream_locations) { return }
 
 	ctl, ok := request["ctl"].(string)
 	if !ok { return }
@@ -202,7 +261,16 @@ func stream_ctl_req(hub *StreamHub, client *Client, request map[string]interface
 	value, ok := request["value"]
 	if !ok { return }
 
-	stream_ctl(hub, stream, ctl, value)
+	allowed, ok := allowed_ctls[ctl]
+	if (!ok) || (!allowed) { return }
+
+	// sanitize val
+	re  := regexp.MustCompile(`[^a-zA-Z0-9]`)
+	val := re.ReplaceAllString(fmt.Sprint(value),"")
+
+	stream := hub.streams[stream_idx]
+	if stream == nil { return }
+	stream.Control(&StreamCtl{cmd:ctl, val:val})
 }
 
 func get_profiles(hub *StreamHub, client *Client, request map[string]interface {}) {
@@ -263,11 +331,11 @@ var req_handlers = map[string]RequestHandler{
 
 	"suggest_viewports"  : suggest_viewports,
 
-	"start_streams"      : start_streams_req,
-	"stop_streams"       : stop_streams_req,
-	"start_stream"       : start_stream_req,
-	"stop_stream"        : stop_stream_req,
-	"stream_ctl"         : stream_ctl_req,
+	"start_streams"      : start_streams,
+	"stop_streams"       : stop_streams,
+	"start_stream"       : start_stream,
+	"stop_stream"        : stop_stream,
+	"stream_ctl"         : stream_ctl,
 }
 
 func client_request(hub *StreamHub, req *ClientRequest) {
@@ -300,6 +368,7 @@ func send_response(send chan<- *Notification, client *Client, request string, pa
 	}
 	note := &Notification{
 		dst           : client,
+		stream_idx    : -1,
 		notification  : request,
 		payload       : payload,
 		json_message  : json_response,
