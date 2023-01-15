@@ -3,10 +3,11 @@
 package main
 
 import (
-	"gopkg.in/natefinch/npipe.v2"
 	"net"
+	"time"
+	"gopkg.in/natefinch/npipe.v2"
 )
 
 func dial_pipe(path string) (net.Conn, error) {
-	return npipe.Dial(path)
+	return npipe.DialTimeout(path,time.Duration(time.Millisecond * 100))
 }
