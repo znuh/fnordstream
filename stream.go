@@ -10,12 +10,20 @@ import (
 	"encoding/json"
 	"github.com/go-cmd/cmd"
 )
-
+/*
+type UserIntent int
+const (
+	UI_Stop              UserIntent = iota
+	UI_Start
+	UI_Restart
+)
+*/
 type StreamState int
 const (
 	ST_Stopped           StreamState = iota
 	ST_Started
 	ST_IPC_Connected
+	//ST_Stopping
 )
 
 type StreamCtl struct {
@@ -31,6 +39,7 @@ type Stream struct {
 	player_cfg              *PlayerConfig
 
 	state                    StreamState
+	//user_intent              UserIntent
 
 	// stuff used by public Control/Start/Stop/Shutdown methods
 	ctl_chan                 chan *StreamCtl
@@ -40,7 +49,7 @@ type Stream struct {
 	// Player stuff
 	player_cmd              *cmd.Cmd
 	cmd_status             <-chan cmd.Status   // player cmd.Status
-	restart_pending          bool
+	user_restart             bool
 
 	// ticker for player/IPC restart
 	ticker_ch              <-chan time.Time
@@ -136,6 +145,24 @@ func (stream * Stream) run() {
 	stream.player_stop()
 }
 
+/*
+ * player exit codes:
+ * - streamlink twitch user offline: ................. 1
+ * - streamlink mpv twitch play until user quits mpv:  0
+ * - mpv twitch user offline: ........................ 2
+ * - mpv twitch play until user quits mpv:             0
+ * - bash command not found: ....................... 127
+ * 
+ * actions:
+ * - ST_IPC_Connected        : NOP
+ * - ST_Started              : set IPC reconnect ticker, send started notification
+ * - ST_Stopped              : send stopped/restarting notification
+ * - ST_Stopped & cmd.Status : decide on restart, set ticker, send stopped/restarting notification
+ * 
+ * restart if:
+ * - user requested
+ * - 
+ */
 func (stream * Stream) state_change(new_state StreamState, cmd_status *cmd.Status) {
 
 	if (stream.state == new_state) && (cmd_status == nil) { return }   // nothing to do
@@ -201,28 +228,37 @@ func (stream *Stream) ticker_stop() {
 	}
 }
 
-/*
- * player exit codes:
- * - streamlink twitch user offline: ................. 1
- * - streamlink mpv twitch play until user quits mpv:  0
- * - mpv twitch user offline: ........................ 2
- * - mpv twitch play until user quits mpv:             0
- * - bash command not found: ....................... 127
- */
 func (stream * Stream) player_stopped(cmd_status *cmd.Status) {
 	stream.ipc_shutdown()
 	stream.state_change(ST_Stopped, cmd_status)
 }
 
+/* only triggered by user action:
+ * - stop (don't restart)
+ * - implicit stop for restart (invoked from player_start in latter case) */
+func (stream * Stream) player_stop() {
+	stream.user_restart = false
+	if stream.state == ST_Stopped { return }
+	stream.player_ctl(&StreamCtl{cmd:"quit"})
+	stream.ipc_shutdown()
+	if stream.player_cmd != nil {
+		stream.player_cmd.Stop()
+		stream.player_cmd = nil
+	}
+	stream.state_change(ST_Stopped, nil)
+}
+
+/* - triggered by user          : start a stopped stream
+ * - triggered by player stopped: restart stream */
 func (stream * Stream) player_start() {
 
 	// restart?
 	if stream.state != ST_Stopped {
 		stream.player_stop()
-		stream.restart_pending = true
+		stream.user_restart = true
 		return
 	}
-	stream.restart_pending = false
+	stream.user_restart = false
 
 	config          := stream.player_cfg
 	player_cmd      := "streamlink"
@@ -249,21 +285,7 @@ func (stream * Stream) player_start() {
 	stream.player_cmd  = cmd.NewCmdOptions(cmdOptions, player_cmd, player_args...)
 	stream.cmd_status  = stream.player_cmd.Start()
 
-	// schedule IPC (re)connect
 	stream.state_change(ST_Started, nil)
-}
-
-/* user requested stop or implicit stop for restart (invoked from player_start in latter case) */
-func (stream * Stream) player_stop() {
-	if stream.state == ST_Stopped { return }
-	stream.player_ctl(&StreamCtl{cmd:"quit"})
-	stream.ipc_shutdown()
-	if stream.player_cmd != nil {
-		stream.player_cmd.Stop()
-		stream.player_cmd = nil
-	}
-	stream.state_change(ST_Stopped, nil)
-	stream.restart_pending = false
 }
 
 func (stream * Stream) player_ctl(ctl *StreamCtl) {
@@ -376,7 +398,7 @@ func player_observe_properties(conn *net.Conn) error {
 		"mute", "volume",
 		//"time-pos",
 		"media-title",
-		"video-format", "video-codec",
+		"video-format", "video-codec", "video-bitrate",
 		"width", "height",
 
 		/* Approximate time of video buffered in the demuxer, in seconds.
@@ -396,8 +418,6 @@ func player_observe_properties(conn *net.Conn) error {
 
 		/* this is false for streaming */
 		// "partially-seekable",
-
-		"video-bitrate",
 	}
 	var msg = make([]byte, 0, 1024)
 	for _, p := range mpv_properties {
