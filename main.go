@@ -3,8 +3,10 @@ package main
 import "flag"
 
 /* TODOs:
+ * - web: add dark mode
  * - go: extend global status on connect (include stream info, etc.)
  * - web: add stream status indicator
+ * - go: switch stream to user_intent + FSM?
  * - auto-sync for stream buffers
  *
  * - go: OSX monitor detection
