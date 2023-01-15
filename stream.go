@@ -48,6 +48,7 @@ type Stream struct {
 
 	// IPC connection to player
 	ipc_conn                 net.Conn
+	ipc_good                 bool
 	player_events          <-chan *Notification
 }
 
@@ -250,7 +251,7 @@ func (stream *Stream) ticker_stop() {
 
 /* player has stopped with exit code */
 func (stream * Stream) player_stopped(cmd_status *cmd.Status) {
-	stream.ipc_shutdown()
+	//stream.ipc_shutdown()
 	stream.state_change(ST_Stopped, cmd_status)
 }
 
@@ -264,7 +265,9 @@ func (stream * Stream) player_stop(user_restart bool, user_stopped bool) {
 	if stream.state == ST_Stopped { return }
 
 	stream.player_ctl(&StreamCtl{cmd:"quit"})
+	//stream.ipc_good = false
 	stream.ipc_shutdown()
+
 	if stream.player_cmd != nil {
 		stream.player_cmd.Stop()
 		stream.player_cmd = nil
@@ -317,7 +320,7 @@ func (stream * Stream) player_start() {
 /* send control command to player via IPC connection */
 func (stream * Stream) player_ctl(ctl *StreamCtl) {
 	var str string
-	if stream.ipc_conn == nil { return }
+	if !stream.ipc_good { return }
 	switch ctl.cmd {
 	case "quit" : str = `{"command":["quit"]}`+"\n"
 	case "seek" : str = fmt.Sprintf(`{"command":["osd-msg-bar","%s","%s"]}`+"\n",ctl.cmd,ctl.val)
@@ -329,8 +332,10 @@ func (stream * Stream) player_ctl(ctl *StreamCtl) {
 
 /* shutdown IPC connection (if not yet done) */
 func (stream *Stream) ipc_shutdown() {
-	if stream.ipc_conn != nil {
+	//if stream.ipc_conn != nil {
+	if stream.ipc_good {
 		stream.ipc_conn.Close()
+		stream.ipc_good      = false
 		stream.ipc_conn      = nil
 		stream.player_events = nil
 	}
@@ -358,12 +363,12 @@ func (stream *Stream) ipc_start() (<-chan *Notification, error) {
 
 	// state update
 	stream.state_change(ST_IPC_Connected, nil)
+	stream.ipc_good = true
 
 	// receiver goroutine
 	go func() {
 
 		defer func() {
-			ipc_conn.Close()           // Multiple goroutines may invoke methods on a Conn simultaneously.
 			close(notes)
 		}()
 
