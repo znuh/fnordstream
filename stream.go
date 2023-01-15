@@ -150,6 +150,8 @@ func (stream * Stream) run() {
  * - streamlink mpv twitch play until user quits mpv:  0
  * - mpv twitch user offline: ........................ 2
  * - mpv twitch play until user quits mpv:             0
+ * - mpv play file until EOF ......................... 0
+ * - mpv quit via IPC ................................ 4
  * - bash command not found: ....................... 127
  * 
  * restart if:
