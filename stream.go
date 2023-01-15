@@ -168,13 +168,13 @@ func (stream * Stream) run() {
  */
 func (stream * Stream) state_change(new_state StreamState, cmd_status *cmd.Status) {
 
-	if (stream.state == new_state) && (cmd_status == nil) { return }   // nothing to do
+	if (stream.state == new_state) && (cmd_status == nil) { return }   // state didn't change - nothing to do
 
 	stream.ticker_stop()  // stop ticker first, restart if necessary
 
 	stream.state = new_state
 
-	if (stream.state == ST_IPC_Connected) { return }   // nothing to do
+	if (stream.state == ST_IPC_Connected) { return }   // ST_IPC_Connected: nothing to do
 
 	player_status := &PlayerStatus{}
 	delay         := time.Duration(-1)
@@ -182,18 +182,32 @@ func (stream * Stream) state_change(new_state StreamState, cmd_status *cmd.Statu
 	if stream.state == ST_Started {
 		player_status.Status = "started"
 		delay                = time.Millisecond * 100    // IPC reconnect ticker
-	} else if stream.state == ST_Stopped {
-		player_status.Status = "stopped"
+	} else { // ST_Stopped
+
+		// player stopped - setup ticker for restart if applicable
 		if cmd_status != nil {
+
+			// copy player exit status to notification
 			player_status.Exit_code = cmd_status.Exit
 			if cmd_status.Error != nil {
 				player_status.Error = cmd_status.Error.Error()
 			}
-			// TODO: optional restart, delay depending on exit reason
-			// restart = time.Millisecond
-			delay = stream.player_cfg.restart_error_delay
+
+			// restart player?
+			config := stream.player_cfg
+			if stream.user_restart || ((cmd_status.Exit == 0) && config.restart_user_quit) {
+				delay = time.Millisecond * 10
+			} else if (cmd_status.Exit > 0) && (cmd_status.Exit < 127) {
+				delay = config.restart_error_delay
+			}
+		} // cmd_status != nil (player stop complete)
+
+		// supplement player status notification
+		if (delay > 0) || (stream.user_restart) {
+			player_status.Status = "restarting"
+		} else {
+			player_status.Status = "stopped"
 		}
-		// TODO: restarting
 	}
 
 	if delay > 0 {
