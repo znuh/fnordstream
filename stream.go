@@ -68,7 +68,12 @@ func NewStream(notifications chan<- *Notification, stream_idx int, player_cfg *P
 
 func (stream * Stream) Control(ctl *StreamCtl) {
 	if stream.user_shutdown { return }
-	stream.ctl_chan <- ctl
+	select {
+		/* send non-blocking so a slow/blocked Stream instance
+		 * won't block the StreamHub */
+		case stream.ctl_chan <- ctl:
+		default:
+	}
 }
 
 func (stream * Stream) Start() {
