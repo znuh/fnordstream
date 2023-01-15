@@ -3,7 +3,6 @@ package main
 import "flag"
 
 /* TODOs:
- * - go: rewrite Stream/Player mess
  * - go: extend global status on connect (include stream info, etc.)
  * - web: add stream status indicator
  * - auto-sync for stream buffers
