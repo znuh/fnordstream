@@ -116,7 +116,7 @@ func (stream * Stream) run() {
 
 				switch ctl.cmd {
 					case "start" : stream.player_start()
-					case "stop"  : stream.player_stop()
+					case "stop"  : stream.player_stop(false)
 					default      : stream.player_ctl(ctl)
 				}
 
@@ -142,7 +142,7 @@ func (stream * Stream) run() {
 
 		} // select
 	 } // for loop
-	stream.player_stop()
+	stream.player_stop(false)
 }
 
 /*
@@ -160,8 +160,9 @@ func (stream * Stream) run() {
  * - ST_Stopped & cmd.Status : decide on restart, set ticker, send stopped/restarting notification
  * 
  * restart if:
- * - user requested
- * - 
+ * - user_restart OR
+ * - cmd_status.Exit == 0 (player user_quit) && config.restart_user_quit OR
+ * - (cmd_status.Exit > 0) && (cmd_status.Exit < 127) && config.restart_error_delay
  */
 func (stream * Stream) state_change(new_state StreamState, cmd_status *cmd.Status) {
 
@@ -208,6 +209,7 @@ func (stream * Stream) state_change(new_state StreamState, cmd_status *cmd.Statu
 	stream.notifications <- note
 }
 
+/* start player or IPC reconnect depending on state */
 func (stream *Stream) ticker_evt() {
 	if stream.state == ST_Started {
 		stream.player_events, _ = stream.ipc_start()
@@ -234,10 +236,10 @@ func (stream * Stream) player_stopped(cmd_status *cmd.Status) {
 }
 
 /* only triggered by user action:
- * - stop (don't restart)
+ * - explicit stop (don't restart)
  * - implicit stop for restart (invoked from player_start in latter case) */
-func (stream * Stream) player_stop() {
-	stream.user_restart = false
+func (stream * Stream) player_stop(user_restart bool) {
+	stream.user_restart = user_restart
 	if stream.state == ST_Stopped { return }
 	stream.player_ctl(&StreamCtl{cmd:"quit"})
 	stream.ipc_shutdown()
@@ -254,10 +256,11 @@ func (stream * Stream) player_start() {
 
 	// restart?
 	if stream.state != ST_Stopped {
-		stream.player_stop()
-		stream.user_restart = true
+		stream.player_stop(true)
 		return
 	}
+
+	// clear user_restart (if set)
 	stream.user_restart = false
 
 	config          := stream.player_cfg
