@@ -97,7 +97,7 @@ func (stream * Stream) Shutdown() {
 	// TODO: wait? (blocking read on shutdown channel)
 }
 
-/* internal stuff
+/* internal stuff follows
  * all internal functions are called from stream.run() goroutine */
 
 /* started in goroutine from NewStream() */
@@ -145,19 +145,21 @@ func (stream * Stream) run() {
 	stream.player_stop(false)
 }
 
-/*
- * player exit codes:
- * - streamlink twitch user offline: ................. 1
- * - streamlink mpv twitch play until user quits mpv:  0
- * - mpv twitch user offline: ........................ 2
- * - mpv twitch play until user quits mpv:             0
- * - bash command not found: ....................... 127
+/* sends state change notifications & sets ticker for player start / IPC reconnect
+ * doesn NOT invoke player_stop/_start (the latter is triggered via ticker)
  * 
  * actions:
  * - ST_IPC_Connected        : NOP
  * - ST_Started              : set IPC reconnect ticker, send started notification
  * - ST_Stopped              : send stopped/restarting notification
  * - ST_Stopped & cmd.Status : decide on restart, set ticker, send stopped/restarting notification
+ * 
+ * player exit codes:
+ * - streamlink twitch user offline: ................. 1
+ * - streamlink mpv twitch play until user quits mpv:  0
+ * - mpv twitch user offline: ........................ 2
+ * - mpv twitch play until user quits mpv:             0
+ * - bash command not found: ....................... 127
  * 
  * restart if:
  * - user_restart OR
@@ -222,6 +224,7 @@ func (stream *Stream) ticker_evt() {
 	}
 }
 
+/* shutdown ticker (if not yet done) */
 func (stream *Stream) ticker_stop() {
 	if stream.ticker_ch != nil {
 		stream.ticker.Stop()
@@ -230,6 +233,7 @@ func (stream *Stream) ticker_stop() {
 	}
 }
 
+/* player has stopped with exit code */
 func (stream * Stream) player_stopped(cmd_status *cmd.Status) {
 	stream.ipc_shutdown()
 	stream.state_change(ST_Stopped, cmd_status)
@@ -291,6 +295,7 @@ func (stream * Stream) player_start() {
 	stream.state_change(ST_Started, nil)
 }
 
+/* send control command to player via IPC connection */
 func (stream * Stream) player_ctl(ctl *StreamCtl) {
 	var str string
 	if stream.ipc_conn == nil { return }
@@ -332,6 +337,7 @@ func mux_player(send chan<- *Notification, player *Player, stream_idx int) {
 }
 */
 
+/* shutdown IPC connection (if not yet done) */
 func (stream *Stream) ipc_shutdown() {
 	if stream.ipc_conn != nil {
 		stream.ipc_conn.Close()
@@ -340,6 +346,9 @@ func (stream *Stream) ipc_shutdown() {
 	}
 }
 
+/* start IPC connection to player
+ * starts a goroutine for reading player events and sends them to
+ * exclusive notification channel (closed before goroutine terminates) */
 func (stream *Stream) ipc_start() (<-chan *Notification, error) {
 	ipc_conn, err := dial_pipe(stream.player_cfg.ipc_pipe)
 	stream.ipc_conn = ipc_conn
@@ -396,6 +405,7 @@ func (stream *Stream) ipc_start() (<-chan *Notification, error) {
 	return notes, err
 }
 
+/* register value change notifications for certain player properties via player IPC conn */
 func player_observe_properties(conn *net.Conn) error {
 	mpv_properties := [...]string{
 		"mute", "volume",
