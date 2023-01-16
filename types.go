@@ -34,3 +34,9 @@ type PlayerStatus struct {
 	Exit_code           *int      `json:"exit_code,omitempty"`
 	Error               string    `json:"error,omitempty"`
 }
+
+type PlayerEvent struct {
+	Event               string         `mapstructure:"event"`
+	Name                string         `mapstructure:"name"`
+	Data                interface{}    `mapstructure:"data"`
+}

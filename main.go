@@ -3,7 +3,7 @@ package main
 import "flag"
 
 /* TODOs:
- * - go: extend global status on connect (include stream info, etc.)
+ * - web: handle extended global status (stream info, etc.)
  * - web: add stream status indicator
  * - go: switch stream to user_intent + FSM?
  * - auto-sync for stream buffers

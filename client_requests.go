@@ -140,9 +140,8 @@ func start_streams(hub *StreamHub, client *Client, request map[string]interface 
 	hub.viewports         = viewports
 	hub.playback_options  = options
 
-	hub.streams           = make([]*Stream, len(hub.stream_locations))
-
-	global_status(hub, nil, nil) /* signal playing mode to all clients - TODO: add more info */
+	hub.streams           = make([]*Stream,       len(hub.stream_locations))
+	hub.stream_status     = make([]*StreamStatus, len(hub.stream_locations))
 
 	/* start streams */
 	for idx, location := range hub.stream_locations {
@@ -182,10 +181,13 @@ func start_streams(hub *StreamHub, client *Client, request map[string]interface 
 			config.streamlink_args = streamlink_args
 		}
 
-		stream           := NewStream(hub.notifications, idx, config)
-		hub.streams[idx]  = stream
+		stream                 := NewStream(hub.notifications, idx, config)
+		hub.streams[idx]        = stream
+		hub.stream_status[idx]  = &StreamStatus{Player_status:"stopped", Location:&location}
 		stream.Start()
-	}
+	} // foreach stream
+
+	global_status(hub, nil, nil) /* signal playing mode to all clients */
 }
 
 /* stop playing completely */
@@ -196,8 +198,11 @@ func stop_streams(hub *StreamHub, client *Client, request map[string]interface {
 	for idx, stream := range hub.streams {
 		if stream == nil { continue }
 		stream.Shutdown()
-		hub.streams[idx] = nil
+		hub.streams[idx]       = nil
+		hub.stream_status[idx] = nil
 	}
+	hub.streams       = nil
+	hub.stream_status = nil
 
 	hub.streams_playing   = false
 	global_status(hub, nil, nil) /* signal global stopped mode to all clients */
@@ -236,6 +241,9 @@ func stop_stream(hub *StreamHub, client *Client, request map[string]interface {}
 func global_status(hub *StreamHub, client *Client, request map[string]interface {}) {
 	note := map[string]interface{}{
 		"playing" : hub.streams_playing,
+	}
+	if hub.streams_playing {
+		note["streams"] = hub.stream_status
 	}
 	send_response(hub.notifications, client, "global_status", &note)
 }

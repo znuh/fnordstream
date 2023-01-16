@@ -28,6 +28,12 @@ type Notification struct {
 	json_message     []byte
 }
 
+type StreamStatus struct {
+	Player_status      string                    `json:"player_status"`
+	Location          *string                    `json:"location,omitempty"`
+	Properties         map[string]interface{}    `json:"properties,omitempty"`
+}
+
 type StreamHub struct {
 	// register/unregister channels for clients
 	Register              chan *Client
@@ -47,6 +53,7 @@ type StreamHub struct {
 
 	streams_playing       bool
 	streams             []*Stream
+	stream_status       []*StreamStatus
 
 	pipe_prefix           string
 	restart_error_delay   time.Duration
