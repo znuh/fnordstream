@@ -123,7 +123,6 @@ function register_handlers() {
 				viewports : viewports,
 				options   : gather_options(),
 			}));
-		setup_stream_controls();   // TODO: invoke from server response
 		streams_playing(true);
 	})
 
@@ -636,6 +635,33 @@ function global_status(msg) {
 	if ((!status) || (status.length < 1))
 		return;
 	streams_playing(status.playing);
+
+	if (!status.playing)
+		return;
+
+	stream_locations = [];
+
+	const streams = status.streams;
+
+	for (let i=0;i<streams.length;i++)
+		stream_locations[i] = streams[i].location;
+	/* create stream nodes */
+	setup_stream_controls();
+
+	/* set status and properties for all streams */
+	for (let i=0;i<streams.length;i++) {
+		const stream = streams[i];
+		player_status({"stream_idx":i, "payload":{"status":stream.player_status}});
+		if (!stream.properties)
+			continue;
+		for (const [key, value] of Object.entries(stream.properties)) {
+			player_event({"stream_idx":i, "payload":{
+				"event" : "property-change",
+				"name"  : key,
+				"data"  : value,
+			}});
+		}
+	}
 }
 
 
