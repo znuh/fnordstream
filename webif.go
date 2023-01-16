@@ -3,10 +3,12 @@ package main
 import (
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"encoding/json"
 
 	"github.com/gorilla/websocket"
+	"github.com/netdata/go.d.plugin/pkg/iprange"
 )
 
 /* StreamHub -> Client */
@@ -76,14 +78,25 @@ func ws_Receiver(c *Client, conn *websocket.Conn) {
 var upgrader = websocket.Upgrader{} // use default options
 
 /* start new websock connection */
-func serveWs(shub *StreamHub, w http.ResponseWriter, r *http.Request) {
+func serveWs(shub *StreamHub, w http.ResponseWriter, r *http.Request, allowed_ips iprange.Pool) {
+
+	/* allow all if no pool given */
+	if allowed_ips != nil {
+		ip, _, _ := net.SplitHostPort(r.RemoteAddr)
+		allowed  := allowed_ips.Contains(net.ParseIP(ip))
+		if !allowed {
+			returnCode403(w, r)
+			return
+		}
+	}
+
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Println("upgrade:", err)
+		fmt.Println("upgrade:", err)
 		return
 	}
 
-	log.Printf("ws started\n")
+	fmt.Println("ws started")
 
 	client := &Client{
 		shub           : shub,
@@ -103,13 +116,39 @@ func serveWs(shub *StreamHub, w http.ResponseWriter, r *http.Request) {
 	go ws_Sender(client, conn)
 }
 
+func returnCode403(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusForbidden)
+	w.Write([]byte("403 Forbidden"))
+}
+
+func auth_check(h http.Handler, allowed_ips iprange.Pool) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+
+		/* allow all if no pool given */
+		if allowed_ips == nil {
+			h.ServeHTTP(w, req)
+			return
+		}
+
+		ip, _, _ := net.SplitHostPort(req.RemoteAddr)
+		allowed  := allowed_ips.Contains(net.ParseIP(ip))
+		if allowed {
+			h.ServeHTTP(w, req)
+		} else {
+			returnCode403(w, req)
+		}
+  })
+}
+
 func run_webui(shub *StreamHub) {
+	var allowed_ips iprange.Pool
+
 	listen_addr := "localhost:8090"
 	fmt.Println("webui mode - open this link in your browser: http://"+listen_addr)
 
-	http.Handle("/", http.FileServer(http.Dir("./web")))
+	http.Handle("/", auth_check(http.FileServer(http.Dir("./web")), allowed_ips))
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
-		serveWs(shub, w, r)
+		serveWs(shub, w, r, allowed_ips)
 	})
 	err := http.ListenAndServe(listen_addr, nil)
 	if err != nil {
