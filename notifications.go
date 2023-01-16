@@ -46,7 +46,9 @@ func player_event(hub *StreamHub, note *Notification) {
 	if (idx < 0) || (idx >= len(hub.streams)) { return }
 
 	stream_status := hub.stream_status[idx]
-	if stream_status == nil { return }
+	if (stream_status == nil) || (stream_status.Properties == nil) {
+		return
+	}
 
 	evt := PlayerEvent{}
 	mapstructure.Decode(note.payload, &evt)
