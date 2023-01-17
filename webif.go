@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"strings"
 	"net"
 	"net/http"
 	"encoding/json"
@@ -78,16 +79,10 @@ func ws_Receiver(c *Client, conn *websocket.Conn) {
 var upgrader = websocket.Upgrader{} // use default options
 
 /* start new websock connection */
-func serveWs(shub *StreamHub, w http.ResponseWriter, r *http.Request, allowed_ips iprange.Pool) {
+func serveWs(shub *StreamHub, w http.ResponseWriter, r *http.Request, acl iprange.Pool) {
 
-	/* allow all if no pool given */
-	if allowed_ips != nil {
-		ip, _, _ := net.SplitHostPort(r.RemoteAddr)
-		allowed  := allowed_ips.Contains(net.ParseIP(ip))
-		if !allowed {
-			returnCode403(w, r)
-			return
-		}
+	if !auth_check(w, r, acl) {
+		return
 	}
 
 	conn, err := upgrader.Upgrade(w, r, nil)
@@ -121,36 +116,72 @@ func returnCode403(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("403 Forbidden"))
 }
 
-func auth_check(h http.Handler, allowed_ips iprange.Pool) http.Handler {
+func auth_check(w http.ResponseWriter, req *http.Request, acl iprange.Pool) bool {
+	if acl == nil {  /* allow all if ACL is nil */
+		return true
+	}
+	ip, _, _ := net.SplitHostPort(req.RemoteAddr)
+	allowed  := acl.Contains(net.ParseIP(ip))
+	if !allowed {
+		returnCode403(w, req)
+	}
+	return allowed
+}
+
+func auth_wrap(h http.Handler, acl iprange.Pool) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-
-		/* allow all if no pool given */
-		if allowed_ips == nil {
+		if auth_check(w, req, acl) {
 			h.ServeHTTP(w, req)
-			return
-		}
-
-		ip, _, _ := net.SplitHostPort(req.RemoteAddr)
-		allowed  := allowed_ips.Contains(net.ParseIP(ip))
-		if allowed {
-			h.ServeHTTP(w, req)
-		} else {
-			returnCode403(w, req)
 		}
   })
 }
 
-func run_webui(shub *StreamHub) {
-	var allowed_ips iprange.Pool
+func webif_run(shub *StreamHub, listen_spec string, webui_acl string) {
+	var acl iprange.Pool  // default: nil (ALLOW ALL)
 
-	listen_addr := "localhost:8090"
-	fmt.Println("webui mode - open this link in your browser: http://"+listen_addr)
+	log.SetFlags(0)
 
-	http.Handle("/", auth_check(http.FileServer(http.Dir("./web")), allowed_ips))
+	fmt.Println("===== webui mode =====")
+
+	// parse listen address
+	listen_host, listen_port, err := net.SplitHostPort(listen_spec)
+	if err != nil {
+		log.Fatal("ERROR: invalid listen ", err)
+	}
+	listen_addr := listen_host + ":" + listen_port
+	fmt.Println("listen address :", listen_addr)
+
+	/* parse client whitelist (if given)
+	   if no client whitelist is provided *ALL* clients will be allowed! */
+	if webui_acl != "<ANY>" {
+		ranges := strings.ReplaceAll(webui_acl, ",", " ")
+		acl, err = iprange.ParseRanges(ranges)
+		if err != nil {
+			log.Fatal("ERROR: ", err)
+		}
+		if acl == nil { // make empty string result in empty range instead of nil
+			acl = []iprange.Range{}
+			fmt.Println("allowed clients:", "*NONE*", "- very nobody - many blocked - wow!")
+		} else {
+			fmt.Println("allowed clients:", acl)
+		}
+	}
+
+	// smack user if they attempt to start non-localhost server without restricting access through -allowed-ips
+	if (listen_host != "127.0.0.1") && (listen_host != "localhost") && (acl == nil) {
+		fmt.Println("allowed clients:", "*ANY*")
+		str := "ERROR: I'm sorry Dave, I'm afraid I can't do that.\n"
+		str += "       For a non-localhost listen address you *MUST* provide a list of allowed clients with -allowed-ips."
+		log.Fatal(str)
+	}
+
+	fmt.Println("open this link in your browser: http://localhost:"+listen_port)
+
+	http.Handle("/", auth_wrap(http.FileServer(http.Dir("./web")), acl))
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
-		serveWs(shub, w, r, allowed_ips)
+		serveWs(shub, w, r, acl)
 	})
-	err := http.ListenAndServe(listen_addr, nil)
+	err = http.ListenAndServe(listen_addr, nil)
 	if err != nil {
 		log.Fatal("ListenAndServe: ", err)
 	}
