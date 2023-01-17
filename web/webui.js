@@ -862,7 +862,7 @@ document.addEventListener("DOMContentLoaded", function() {
   displays[0].geo.h = window.screen.height;
   update_displays();
 
-  let websock = new WebSocket("ws://localhost:8090/ws");
+  let websock = new WebSocket("ws://"+window.location.host+"/ws");
   websock.onclose = ws_closed;
   websock.onmessage = ws_rx;
   
