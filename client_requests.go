@@ -183,7 +183,7 @@ func start_streams(hub *StreamHub, client *Client, request map[string]interface 
 
 		stream                 := NewStream(hub.notifications, idx, config)
 		hub.streams[idx]        = stream
-		hub.stream_status[idx]  = &StreamStatus{Player_status:"stopped", Location:&location}
+		hub.stream_status[idx]  = &StreamStatus{Player_status:"stopped", Location:&hub.stream_locations[idx]}
 		stream.Start()
 	} // foreach stream
 
