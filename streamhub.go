@@ -20,7 +20,7 @@ type ClientRequest struct {
 
 type Notification struct {
 	dst               *Client
-	stream_idx         int       // stream index source (if >= 0)
+	stream_id          int       // stream index source (if >= 0)
 
 	notification       string
 	payload            interface{}
@@ -136,8 +136,8 @@ func (hub * StreamHub) Run() {
 				json_message := note.json_message
 
 				// prepend JSON data with note type and stream_id
-				if note.stream_idx >= 0 {
-					prepend          := `{"notification":"`+note.notification+`","stream_idx":`+strconv.Itoa(note.stream_idx)+`,"payload":`
+				if note.stream_id >= 0 {
+					prepend          := `{"notification":"`+note.notification+`","stream_id":`+strconv.Itoa(note.stream_id)+`,"payload":`
 					str              := prepend + string(json_message) + "}"
 					json_message      = []byte(str)
 					note.json_message = json_message

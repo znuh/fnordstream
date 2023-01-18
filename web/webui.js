@@ -112,7 +112,7 @@ function register_handlers() {
 
 	/* streams */
 
-	/* start stream */
+	/* start streams */
 	const streams_start = document.getElementById('streams_start');
 	streams_start.addEventListener('click', (event) => {
 	  if(ws)
@@ -354,7 +354,7 @@ function setup_stream_controls() {
 			ws.send(JSON.stringify(
 			{
 				request     : "stream_ctl",
-				stream      : i,
+				stream_id   : i,
 				ctl         : "volume",
 				value       : val
 			}));
@@ -368,7 +368,7 @@ function setup_stream_controls() {
 			ws.send(JSON.stringify(
 			{
 				request     : "stream_ctl",
-				stream      : i,
+				stream_id   : i,
 				ctl         : "mute",
 				value       : val
 			}));
@@ -380,7 +380,7 @@ function setup_stream_controls() {
 			ws.send(JSON.stringify(
 			{
 				request     : "stream_ctl",
-				stream      : i,
+				stream_id   : i,
 				ctl         : "mute",
 				value       : "no",
 			}));
@@ -389,19 +389,19 @@ function setup_stream_controls() {
 		let stop = replace_child(children,"stream-stop-",i);
 		stop.addEventListener('click', (event) => {
 			if(ws)
-				ws.send(JSON.stringify({request:"stop_stream",stream:i}));
+				ws.send(JSON.stringify({request:"stop_stream",stream_id:i}));
 		})
 
 		let play = replace_child(children,"stream-play-",i);
 		play.addEventListener('click', (event) => {
 			if(ws)
-				ws.send(JSON.stringify({request:"start_stream",stream:i}));
+				ws.send(JSON.stringify({request:"start_stream",stream_id:i}));
 		})
 
 		let restart = replace_child(children,"stream-restart-",i,true);
 		restart.addEventListener('click', (event) => {
 			if(ws)
-				ws.send(JSON.stringify({request:"start_stream",stream:i}));
+				ws.send(JSON.stringify({request:"start_stream",stream_id:i}));
 		})
 
 		let ffwd = replace_child(children,"stream-ffwd-",i);
@@ -409,7 +409,7 @@ function setup_stream_controls() {
 			ws.send(JSON.stringify(
 			{
 				request     : "stream_ctl",
-				stream      : i,
+				stream_id   : i,
 				ctl         : "seek",
 				value       : "1"
 			}));
@@ -440,7 +440,7 @@ function ws_sendmulti(exempt, request, ctl, value) {
 		msg += JSON.stringify(
 			{
 				request     : request,
-				stream      : i,
+				stream_id   : i,
 				ctl         : ctl,
 				value       : value,
 			});
@@ -533,7 +533,7 @@ function viewports_notification(msg) {
 	draw_viewports();
 }
 
-function mpv_property_changed(property, stream_idx) {
+function mpv_property_changed(property, stream_id) {
 	const property_map = { /* property -> node_name map */
 		"media-title"            : "title",
 		"demuxer-cache-duration" : "buffer",
@@ -548,14 +548,14 @@ function mpv_property_changed(property, stream_idx) {
 
 	let target = property_map[property.name];
 	if (!target) {
-		//console.log("no node name", stream_idx, target, property);
+		//console.log("no node name", stream_id, target, property);
 		target = property.name;
 		//return;
 	}
 
-	node = stream_nodes[stream_idx][target];
+	node = stream_nodes[stream_id][target];
 	if (!node) {
-		//console.log("no target node", stream_idx, target, property);
+		//console.log("no target node", stream_id, target, property);
 		return;
 	}
 
@@ -565,7 +565,7 @@ function mpv_property_changed(property, stream_idx) {
 
 	let update_func = update_funcs[target];
 	if (!update_func) {
-		console.log("no update func", stream_idx, target, property);
+		console.log("no update func", stream_id, target, property);
 		return;
 	}
 	update_func(node,val);
@@ -578,16 +578,16 @@ function player_event(msg) {
 	if ((!event) || (event.length < 1))
 		return;
 
-	stream_idx = parseInt(msg.stream_idx);
-	if (isNaN(stream_idx) || (stream_idx >= stream_nodes.length) || (stream_idx < 0))
+	stream_id = parseInt(msg.stream_id);
+	if (isNaN(stream_id) || (stream_id >= stream_nodes.length) || (stream_id < 0))
 		return;
 
 	if (event.event == "property-change") {
-		//console.log(stream_idx, event);
-		mpv_property_changed(event, stream_idx);
+		//console.log(stream_id, event);
+		mpv_property_changed(event, stream_id);
 	}
 	//else
-		//console.log(stream_idx, event, msg);
+		//console.log(stream_id, event, msg);
 }
 
 function player_status(msg) {
@@ -596,21 +596,21 @@ function player_status(msg) {
 	if ((!payload) || (payload.length < 1))
 		return;
 
-	stream_idx = parseInt(msg.stream_idx);
-	if (isNaN(stream_idx) || (stream_idx >= stream_nodes.length) || (stream_idx < 0))
+	stream_id = parseInt(msg.stream_id);
+	if (isNaN(stream_id) || (stream_id >= stream_nodes.length) || (stream_id < 0))
 		return;
 
 	const status = payload.status;
 
-	stream_nodes[stream_idx].volume.disabled              = status != "started";
-	stream_nodes[stream_idx].buffer.disabled              = status != "started";
-	stream_nodes[stream_idx].muting.disabled              = status != "started";
-	stream_nodes[stream_idx].exclusive_unmute.disabled    = status != "started";
-	stream_nodes[stream_idx].stop.disabled                = status == "stopped";
-	stream_nodes[stream_idx].play.disabled                = status == "started";
-	stream_nodes[stream_idx].ffwd.disabled                = status != "started";
+	stream_nodes[stream_id].volume.disabled              = status != "started";
+	stream_nodes[stream_id].buffer.disabled              = status != "started";
+	stream_nodes[stream_id].muting.disabled              = status != "started";
+	stream_nodes[stream_id].exclusive_unmute.disabled    = status != "started";
+	stream_nodes[stream_id].stop.disabled                = status == "stopped";
+	stream_nodes[stream_id].play.disabled                = status == "started";
+	stream_nodes[stream_id].ffwd.disabled                = status != "started";
 
-	//console.log("player_status", stream_idx, status);
+	//console.log("player_status", stream_id, status);
 }
 
 function streams_playing(active) {
@@ -651,11 +651,11 @@ function global_status(msg) {
 	/* set status and properties for all streams */
 	for (let i=0;i<streams.length;i++) {
 		const stream = streams[i];
-		player_status({"stream_idx":i, "payload":{"status":stream.player_status}});
+		player_status({"stream_id":i, "payload":{"status":stream.player_status}});
 		if (!stream.properties)
 			continue;
 		for (const [key, value] of Object.entries(stream.properties)) {
-			player_event({"stream_idx":i, "payload":{
+			player_event({"stream_id":i, "payload":{
 				"event" : "property-change",
 				"name"  : key,
 				"data"  : value,

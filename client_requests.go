@@ -212,13 +212,13 @@ func stop_streams(hub *StreamHub, client *Client, request map[string]interface {
 func start_stream(hub *StreamHub, client *Client, request map[string]interface {}) {
 	if !hub.streams_playing { return }
 
-	tmp, ok := request["stream"].(float64)
+	tmp, ok := request["stream_id"].(float64)
 	if !ok { return }
 
-	stream_idx := int(tmp)
-	if stream_idx < 0 || stream_idx >= len(hub.stream_locations) { return }
+	stream_id := int(tmp)
+	if stream_id < 0 || stream_id >= len(hub.stream_locations) { return }
 
-	stream := hub.streams[stream_idx]
+	stream := hub.streams[stream_id]
 	if stream == nil { return }
 	stream.Start()
 }
@@ -227,13 +227,13 @@ func start_stream(hub *StreamHub, client *Client, request map[string]interface {
 func stop_stream(hub *StreamHub, client *Client, request map[string]interface {}) {
 	if !hub.streams_playing { return }
 
-	tmp, ok := request["stream"].(float64)
+	tmp, ok := request["stream_id"].(float64)
 	if !ok { return }
 
-	stream_idx := int(tmp)
-	if stream_idx < 0 || stream_idx >= len(hub.stream_locations) { return }
+	stream_id := int(tmp)
+	if stream_id < 0 || stream_id >= len(hub.stream_locations) { return }
 
-	stream := hub.streams[stream_idx]
+	stream := hub.streams[stream_id]
 	if stream == nil { return }
 	stream.Stop()
 }
@@ -257,11 +257,11 @@ func stream_ctl(hub *StreamHub, client *Client, request map[string]interface {})
 
 	if !hub.streams_playing { return }
 
-	tmp, ok := request["stream"].(float64)
+	tmp, ok := request["stream_id"].(float64)
 	if !ok { return }
 
-	stream_idx := int(tmp)
-	if stream_idx < 0 || stream_idx >= len(hub.stream_locations) { return }
+	stream_id := int(tmp)
+	if stream_id < 0 || stream_id >= len(hub.stream_locations) { return }
 
 	ctl, ok := request["ctl"].(string)
 	if !ok { return }
@@ -276,7 +276,7 @@ func stream_ctl(hub *StreamHub, client *Client, request map[string]interface {})
 	re  := regexp.MustCompile(`[^a-zA-Z0-9]`)
 	val := re.ReplaceAllString(fmt.Sprint(value),"")
 
-	stream := hub.streams[stream_idx]
+	stream := hub.streams[stream_id]
 	if stream == nil { return }
 	stream.Control(&StreamCtl{cmd:ctl, val:val})
 }
@@ -376,7 +376,7 @@ func send_response(send chan<- *Notification, client *Client, request string, pa
 	}
 	note := &Notification{
 		dst           : client,
-		stream_idx    : -1,
+		stream_id     : -1,
 		notification  : request,
 		payload       : payload,
 		json_message  : json_response,

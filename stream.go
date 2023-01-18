@@ -24,7 +24,7 @@ type StreamCtl struct {
 
 type Stream struct {
 	notifications            chan<- *Notification
-	stream_idx               int
+	stream_id                int
 	ipc_pipe                 string
 
 	player_cfg              *PlayerConfig
@@ -53,10 +53,10 @@ type Stream struct {
 }
 
 /* user interface */
-func NewStream(notifications chan<- *Notification, stream_idx int, player_cfg *PlayerConfig) *Stream {
+func NewStream(notifications chan<- *Notification, stream_id int, player_cfg *PlayerConfig) *Stream {
 	stream := &Stream{
 		notifications : notifications,
-		stream_idx    : stream_idx,
+		stream_id     : stream_id,
 
 		player_cfg    : player_cfg,
 
@@ -133,7 +133,7 @@ func (stream * Stream) run() {
 				if ok { 
 					stream.notifications <- player_evt 
 				} else {
-					//fmt.Println("player_evt channel closed", stream.stream_idx)
+					//fmt.Println("player_evt channel closed", stream.stream_id)
 					stream.ipc_shutdown()
 				}
 
@@ -219,7 +219,7 @@ func (stream * Stream) state_change(new_state StreamState, cmd_status *cmd.Statu
 
 	json_msg, _ := json.Marshal(player_status)
 	note := &Notification{
-		stream_idx   : stream.stream_idx,
+		stream_id    : stream.stream_id,
 		notification : "player_status",
 		payload      : player_status,
 		json_message : json_msg,
@@ -383,7 +383,7 @@ func (stream *Stream) ipc_start() (<-chan *Notification, error) {
 			var payload interface{}
 			_ = json.Unmarshal(json_message, &payload)
 			status := &Notification{
-				stream_idx   : stream.stream_idx,
+				stream_id    : stream.stream_id,
 				notification : "player_event",
 				payload      : payload,
 				json_message : json_message,

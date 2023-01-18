@@ -22,7 +22,7 @@ func displays_update(hub *StreamHub, note *Notification) {
 }
 
 func player_status_update(hub *StreamHub, note *Notification) {
-	idx := note.stream_idx
+	idx := note.stream_id
 	if (idx < 0) || (idx >= len(hub.streams)) { return }
 
 	stream_status := hub.stream_status[idx]
@@ -42,7 +42,7 @@ func player_status_update(hub *StreamHub, note *Notification) {
 }
 
 func player_event(hub *StreamHub, note *Notification) {
-	idx := note.stream_idx
+	idx := note.stream_id
 	if (idx < 0) || (idx >= len(hub.streams)) { return }
 
 	stream_status := hub.stream_status[idx]
