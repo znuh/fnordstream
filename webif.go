@@ -69,7 +69,7 @@ func ws_Receiver(c *Client, conn *websocket.Conn) {
 				break
 			}
 
-			fmt.Println("recv:", msg)
+			//fmt.Println("recv:", msg)
 			if msg["request"] == nil { continue }
 			c.client_request <- msg
 		}
@@ -91,7 +91,7 @@ func serveWs(shub *StreamHub, w http.ResponseWriter, r *http.Request, acl iprang
 		return
 	}
 
-	fmt.Println("ws started")
+	fmt.Println("ws started for " + r.RemoteAddr)
 
 	client := &Client{
 		shub           : shub,

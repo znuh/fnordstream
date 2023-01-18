@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	//"fmt"
 	"time"
 	"runtime"
 	"strconv"
@@ -89,7 +89,7 @@ func mux_client(hub *StreamHub, client *Client) {
 		if !ok { break }
 		hub.client_requests <- &ClientRequest{src : client, request: msg}
 	}
-	fmt.Println("mux_client done")
+	//fmt.Println("mux_client done")
 }
 
 func try_forward(client *Client, message []byte) {
