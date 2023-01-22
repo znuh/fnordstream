@@ -192,7 +192,7 @@ func start_streams(hub *StreamHub, client *Client, request map[string]interface 
 
 	/* start streams */
 	for _, stream := range hub.streams {
-		stream.Start()
+		stream.Play()
 	}
 }
 
@@ -214,6 +214,16 @@ func stop_streams(hub *StreamHub, client *Client, request map[string]interface {
 	global_status(hub, nil, nil) /* signal global stopped mode to all clients */
 }
 
+func global_status(hub *StreamHub, client *Client, request map[string]interface {}) {
+	note := map[string]interface{}{
+		"playing" : hub.streams_playing,
+	}
+	if hub.streams_playing {
+		note["streams"] = hub.stream_status
+	}
+	send_response(hub.notifications, client, "global_status", &note)
+}
+
 func lookup_stream(hub *StreamHub, request map[string]interface {}) *Stream {
 	if !hub.streams_playing { return nil }
 
@@ -226,42 +236,12 @@ func lookup_stream(hub *StreamHub, request map[string]interface {}) *Stream {
 	return hub.streams[stream_id]
 }
 
-/* start single stream */
-func start_stream(hub *StreamHub, client *Client, request map[string]interface {}) {
-	stream := lookup_stream(hub, request)
-	if stream == nil { return }
-	stream.Start()
-}
-
-/* stop single stream */
-func stop_stream(hub *StreamHub, client *Client, request map[string]interface {}) {
-	stream := lookup_stream(hub, request)
-	if stream == nil { return }
-	stream.Stop()
-}
-
-/* restart single stream */
-func restart_stream(hub *StreamHub, client *Client, request map[string]interface {}) {
-	stream := lookup_stream(hub, request)
-	if stream == nil { return }
-	stream.Restart()
-}
-
-func global_status(hub *StreamHub, client *Client, request map[string]interface {}) {
-	note := map[string]interface{}{
-		"playing" : hub.streams_playing,
-	}
-	if hub.streams_playing {
-		note["streams"] = hub.stream_status
-	}
-	send_response(hub.notifications, client, "global_status", &note)
-}
-
 func stream_ctl(hub *StreamHub, client *Client, request map[string]interface {}) {
 	var allowed_ctls = map[string]bool{
 		"volume" : true,
 		"seek"   : true,
 		"mute"   : true,
+		"play"   : true,
 	}
 
 	stream := lookup_stream(hub, request)
@@ -342,10 +322,6 @@ var req_handlers = map[string]RequestHandler{
 
 	"start_streams"      : start_streams,
 	"stop_streams"       : stop_streams,
-
-	"start_stream"       : start_stream,
-	"stop_stream"        : stop_stream,
-	"restart_stream"     : restart_stream,
 
 	"stream_ctl"         : stream_ctl,
 }

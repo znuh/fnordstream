@@ -196,12 +196,12 @@ function register_handlers() {
 
 	const streams_stop_all    = document.getElementById('streams-stop-all');
 	streams_stop_all.addEventListener('click', (event) => {
-		ws_sendmulti(undefined, "stop_stream");
+		ws_sendmulti(undefined, "stream_ctl", "play", "no");
 	})
 
 	const streams_play_all    = document.getElementById('streams-play-all');
 	streams_play_all.addEventListener('click', (event) => {
-		ws_sendmulti(undefined, "start_stream");
+		ws_sendmulti(undefined, "stream_ctl", "play", "yes");
 	})
 
 	const streams_ffwd_all    = document.getElementById('streams-ffwd-all');
@@ -211,7 +211,7 @@ function register_handlers() {
 
 	const streams_restart_all = document.getElementById('streams-restart-all');
 	streams_restart_all.addEventListener('click', (event) => {
-		ws_sendmulti(undefined, "restart_stream");
+		ws_sendmulti(undefined, "stream_ctl", "play", "restart");
 	})
 
 	const streams_quit = document.getElementById('streams_quit');
@@ -389,19 +389,37 @@ function setup_stream_controls() {
 		let stop = replace_child(children,"stream-stop-",i);
 		stop.addEventListener('click', (event) => {
 			if(ws)
-				ws.send(JSON.stringify({request:"stop_stream",stream_id:i}));
+				ws.send(JSON.stringify(
+				{
+					request     : "stream_ctl",
+					stream_id   : i,
+					ctl         : "play",
+					value       : "no"
+				}));
 		})
 
 		let play = replace_child(children,"stream-play-",i);
 		play.addEventListener('click', (event) => {
 			if(ws)
-				ws.send(JSON.stringify({request:"start_stream",stream_id:i}));
+				ws.send(JSON.stringify(
+				{
+					request     : "stream_ctl",
+					stream_id   : i,
+					ctl         : "play",
+					value       : "yes"
+				}));
 		})
 
 		let restart = replace_child(children,"stream-restart-",i,true);
 		restart.addEventListener('click', (event) => {
 			if(ws)
-				ws.send(JSON.stringify({request:"restart_stream",stream_id:i}));
+				ws.send(JSON.stringify(
+				{
+					request     : "stream_ctl",
+					stream_id   : i,
+					ctl         : "play",
+					value       : "restart"
+				}));
 		})
 
 		let ffwd = replace_child(children,"stream-ffwd-",i);

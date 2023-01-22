@@ -10,13 +10,6 @@ import (
 	"github.com/go-cmd/cmd"
 )
 
-type UserIntent int
-const (
-	UI_Stop		         UserIntent = iota
-	UI_Play
-	UI_Restart
-)
-
 type StreamState int
 const (
 	ST_Stopped           StreamState = iota
@@ -35,11 +28,9 @@ type Stream struct {
 	ipc_pipe                 string
 
 	player_cfg              *PlayerConfig
-
 	state                    StreamState
-	user_intent              UserIntent
 
-	// stuff used by public Control/Start/Stop/Shutdown methods
+	// stuff used by public methods
 	ctl_chan                 chan *StreamCtl
 	//shutdown                 chan struct{}
 	user_shutdown            bool
@@ -85,19 +76,8 @@ func (stream * Stream) Control(ctl *StreamCtl) {
 	}
 }
 
-func (stream * Stream) Start() {
-	if stream.user_shutdown { return }
-	stream.Control(&StreamCtl{cmd:"start"})
-}
-
-func (stream * Stream) Stop() {
-	if stream.user_shutdown { return }
-	stream.Control(&StreamCtl{cmd:"stop"})
-}
-
-func (stream * Stream) Restart() {
-	if stream.user_shutdown { return }
-	stream.Control(&StreamCtl{cmd:"restart"})
+func (stream * Stream) Play() {
+	stream.Control(&StreamCtl{cmd:"play",val:"yes"})
 }
 
 func (stream * Stream) Shutdown() {
@@ -124,12 +104,13 @@ func (stream * Stream) run() {
 					break;
 				}
 
-				switch ctl.cmd {
-					case "start"   : stream.stream_ctl(UI_Play)
-					case "stop"    : stream.stream_ctl(UI_Stop)
-					case "restart" : stream.stream_ctl(UI_Restart)
-					default        : stream.player_ctl(ctl)
-				}
+				if ctl.cmd == "play" {
+					switch ctl.val {
+						case "yes"     : stream.player_start()
+						case "no"      : stream.player_stop(false, true)
+						case "restart" : fmt.Println("TBD: restart stream")
+					}
+				} else { stream.player_ctl(ctl)	}
 
 			// command status channel for player command (fires on player exit)
 			case cmd_status := <- stream.cmd_status:
@@ -154,15 +135,6 @@ func (stream * Stream) run() {
 		} // select
 	 } // for loop
 	stream.player_stop(false, true)
-}
-
-func (stream * Stream) stream_ctl(intent UserIntent) {
-	stream.user_intent = intent
-	switch intent {
-		case UI_Stop    : stream.player_stop(false, true)
-		case UI_Play    : stream.player_start()
-		case UI_Restart : fmt.Println("TBD: restart stream")
-	}
 }
 
 /* sends state change notifications & sets ticker for player start / IPC reconnect
