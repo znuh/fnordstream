@@ -38,8 +38,8 @@ type Stream struct {
 	// Player stuff
 	player_cmd              *cmd.Cmd
 	cmd_status             <-chan cmd.Status   // player cmd.Status
+	play                     bool              // play request from user -> true, stop request -> false
 	user_restart             bool              // user triggered restart (overrides auto-restart conditions)
-	user_stopped             bool              // user stopped -> disable restarts until user starts stream again
 
 	// ticker for player/IPC restart
 	ticker_ch              <-chan time.Time
@@ -106,9 +106,14 @@ func (stream * Stream) run() {
 
 				if ctl.cmd == "play" {
 					switch ctl.val {
-						case "yes"     : stream.player_start()
-						case "no"      : stream.player_stop(false, true)
-						case "restart" : fmt.Println("TBD: restart stream")
+						case "yes":
+							stream.play = true
+							stream.player_start()
+						case "no":
+							stream.play = false
+							stream.player_stop()
+						case "restart" :
+							fmt.Println("TBD: restart stream")
 					}
 				} else { stream.player_ctl(ctl)	}
 
@@ -133,8 +138,9 @@ func (stream * Stream) run() {
 				}
 
 		} // select
-	 } // for loop
-	stream.player_stop(false, true)
+	} // for loop
+	stream.play = false
+	stream.player_stop()
 }
 
 /* sends state change notifications & sets ticker for player start / IPC reconnect
@@ -191,7 +197,7 @@ func (stream * Stream) state_change(new_state StreamState, cmd_status *cmd.Statu
 			// restart player?
 			config := stream.player_cfg
 			//fmt.Println("restart?", stream.user_restart, stream.user_stopped, cmd_status.Exit, config.restart_user_quit, config.restart_error_delay)
-			if stream.user_stopped { // don't restart
+			if !stream.play { // don't restart
 			} else if stream.user_restart || ((cmd_status.Exit == 0) && config.restart_user_quit) {
 				delay = time.Millisecond * 10
 			} else if (cmd_status.Exit > 0) && (cmd_status.Exit < 127) {
@@ -253,9 +259,7 @@ func (stream * Stream) player_stopped(cmd_status *cmd.Status) {
 /* only triggered by user action:
  * - explicit stop (don't restart)
  * - implicit stop for restart (invoked from player_start in latter case) */
-func (stream * Stream) player_stop(user_restart bool, user_stopped bool) {
-	stream.user_restart = user_restart
-	stream.user_stopped = user_stopped
+func (stream * Stream) player_stop() {
 
 	if stream.state == ST_Stopped { return }
 
@@ -276,13 +280,12 @@ func (stream * Stream) player_start() {
 
 	// restart?
 	if stream.state != ST_Stopped {
-		stream.player_stop(true, false)
+		stream.player_stop()
 		return
 	}
 
-	// clear user_restart and user_stopped (if set)
+	// clear user_restart (if set)
 	stream.user_restart = false
-	stream.user_stopped = false
 
 	config          := stream.player_cfg
 	player_cmd      := "streamlink"
