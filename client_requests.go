@@ -143,7 +143,7 @@ func start_streams(hub *StreamHub, client *Client, request map[string]interface 
 	hub.streams           = make([]*Stream,       len(hub.stream_locations))
 	hub.stream_status     = make([]*StreamStatus, len(hub.stream_locations))
 
-	/* start streams */
+	/* create streams */
 	for idx, location := range hub.stream_locations {
 		/* build player config */
 		mpv_args := []string{
@@ -184,10 +184,16 @@ func start_streams(hub *StreamHub, client *Client, request map[string]interface 
 		stream                 := NewStream(hub.notifications, idx, config)
 		hub.streams[idx]        = stream
 		hub.stream_status[idx]  = &StreamStatus{Player_status:"stopped", Location:&hub.stream_locations[idx]}
-		stream.Start()
 	} // foreach stream
 
-	global_status(hub, nil, nil) /* signal playing mode to all clients */
+	/* signal playing mode to all clients before starting the streams
+	 * otherwise clients can receive stream/player info before stream definitions */
+	global_status(hub, nil, nil)
+
+	/* start streams */
+	for _, stream := range hub.streams {
+		stream.Start()
+	}
 }
 
 /* stop playing completely */
