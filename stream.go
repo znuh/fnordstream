@@ -25,10 +25,11 @@ type StreamCtl struct {
 type Stream struct {
 	notifications            chan<- *Notification
 	stream_id                int
-	ipc_pipe                 string
 
 	player_cfg              *PlayerConfig
 	state                    StreamState
+	play                     bool              // play request from user -> true, stop request -> false
+	user_restart             bool              // user triggered restart (overrides auto-restart conditions)
 
 	// stuff used by public methods
 	ctl_chan                 chan *StreamCtl
@@ -38,8 +39,6 @@ type Stream struct {
 	// Player stuff
 	player_cmd              *cmd.Cmd
 	cmd_status             <-chan cmd.Status   // player cmd.Status
-	play                     bool              // play request from user -> true, stop request -> false
-	user_restart             bool              // user triggered restart (overrides auto-restart conditions)
 
 	// ticker for player/IPC restart
 	ticker_ch              <-chan time.Time
