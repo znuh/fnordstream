@@ -208,47 +208,35 @@ func stop_streams(hub *StreamHub, client *Client, request map[string]interface {
 	global_status(hub, nil, nil) /* signal global stopped mode to all clients */
 }
 
-/* start single stream */
-func start_stream(hub *StreamHub, client *Client, request map[string]interface {}) {
-	if !hub.streams_playing { return }
+func lookup_stream(hub *StreamHub, request map[string]interface {}) *Stream {
+	if !hub.streams_playing { return nil }
 
 	tmp, ok := request["stream_id"].(float64)
-	if !ok { return }
+	if !ok { return nil }
 
 	stream_id := int(tmp)
-	if stream_id < 0 || stream_id >= len(hub.stream_locations) { return }
+	if stream_id < 0 || stream_id >= len(hub.stream_locations) { return nil }
 
-	stream := hub.streams[stream_id]
+	return hub.streams[stream_id]
+}
+
+/* start single stream */
+func start_stream(hub *StreamHub, client *Client, request map[string]interface {}) {
+	stream := lookup_stream(hub, request)
 	if stream == nil { return }
 	stream.Start()
 }
 
 /* stop single stream */
 func stop_stream(hub *StreamHub, client *Client, request map[string]interface {}) {
-	if !hub.streams_playing { return }
-
-	tmp, ok := request["stream_id"].(float64)
-	if !ok { return }
-
-	stream_id := int(tmp)
-	if stream_id < 0 || stream_id >= len(hub.stream_locations) { return }
-
-	stream := hub.streams[stream_id]
+	stream := lookup_stream(hub, request)
 	if stream == nil { return }
 	stream.Stop()
 }
 
 /* restart single stream */
 func restart_stream(hub *StreamHub, client *Client, request map[string]interface {}) {
-	if !hub.streams_playing { return }
-
-	tmp, ok := request["stream_id"].(float64)
-	if !ok { return }
-
-	stream_id := int(tmp)
-	if stream_id < 0 || stream_id >= len(hub.stream_locations) { return }
-
-	stream := hub.streams[stream_id]
+	stream := lookup_stream(hub, request)
 	if stream == nil { return }
 	stream.Restart()
 }
@@ -270,13 +258,8 @@ func stream_ctl(hub *StreamHub, client *Client, request map[string]interface {})
 		"mute"   : true,
 	}
 
-	if !hub.streams_playing { return }
-
-	tmp, ok := request["stream_id"].(float64)
-	if !ok { return }
-
-	stream_id := int(tmp)
-	if stream_id < 0 || stream_id >= len(hub.stream_locations) { return }
+	stream := lookup_stream(hub, request)
+	if stream == nil { return }
 
 	ctl, ok := request["ctl"].(string)
 	if !ok { return }
@@ -291,8 +274,6 @@ func stream_ctl(hub *StreamHub, client *Client, request map[string]interface {})
 	re  := regexp.MustCompile(`[^a-zA-Z0-9]`)
 	val := re.ReplaceAllString(fmt.Sprint(value),"")
 
-	stream := hub.streams[stream_id]
-	if stream == nil { return }
 	stream.Control(&StreamCtl{cmd:ctl, val:val})
 }
 
