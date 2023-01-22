@@ -87,6 +87,11 @@ func (stream * Stream) Stop() {
 	stream.Control(&StreamCtl{cmd:"stop"})
 }
 
+func (stream * Stream) Restart() {
+	if stream.user_shutdown { return }
+	stream.Control(&StreamCtl{cmd:"restart"})
+}
+
 func (stream * Stream) Shutdown() {
 	if stream.user_shutdown { return }
 	stream.user_shutdown = true
@@ -112,9 +117,10 @@ func (stream * Stream) run() {
 				}
 
 				switch ctl.cmd {
-					case "start" : stream.player_start()
-					case "stop"  : stream.player_stop(false, true)
-					default      : stream.player_ctl(ctl)
+					case "start"   : stream.player_start()
+					case "stop"    : stream.player_stop(false, true)
+					case "restart" : fmt.Println("TBD: restart stream")
+					default        : stream.player_ctl(ctl)
 				}
 
 			// command status channel for player command (fires on player exit)

@@ -211,7 +211,7 @@ function register_handlers() {
 
 	const streams_restart_all = document.getElementById('streams-restart-all');
 	streams_restart_all.addEventListener('click', (event) => {
-		ws_sendmulti(undefined, "start_stream");
+		ws_sendmulti(undefined, "restart_stream");
 	})
 
 	const streams_quit = document.getElementById('streams_quit');
@@ -401,7 +401,7 @@ function setup_stream_controls() {
 		let restart = replace_child(children,"stream-restart-",i,true);
 		restart.addEventListener('click', (event) => {
 			if(ws)
-				ws.send(JSON.stringify({request:"start_stream",stream_id:i}));
+				ws.send(JSON.stringify({request:"restart_stream",stream_id:i}));
 		})
 
 		let ffwd = replace_child(children,"stream-ffwd-",i);

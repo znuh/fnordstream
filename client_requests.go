@@ -238,6 +238,21 @@ func stop_stream(hub *StreamHub, client *Client, request map[string]interface {}
 	stream.Stop()
 }
 
+/* restart single stream */
+func restart_stream(hub *StreamHub, client *Client, request map[string]interface {}) {
+	if !hub.streams_playing { return }
+
+	tmp, ok := request["stream_id"].(float64)
+	if !ok { return }
+
+	stream_id := int(tmp)
+	if stream_id < 0 || stream_id >= len(hub.stream_locations) { return }
+
+	stream := hub.streams[stream_id]
+	if stream == nil { return }
+	stream.Restart()
+}
+
 func global_status(hub *StreamHub, client *Client, request map[string]interface {}) {
 	note := map[string]interface{}{
 		"playing" : hub.streams_playing,
@@ -343,6 +358,7 @@ var req_handlers = map[string]RequestHandler{
 	"stop_streams"       : stop_streams,
 	"start_stream"       : start_stream,
 	"stop_stream"        : stop_stream,
+	"restart_stream"     : restart_stream,
 	"stream_ctl"         : stream_ctl,
 }
 
