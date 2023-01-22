@@ -128,6 +128,11 @@ function register_handlers() {
 
 	/* stream URLs changed */
 	const stream_urls = document.getElementById('stream_urls');
+	stream_urls.addEventListener('drop', (event) => {
+		const tg = event.target;
+		if (tg.value.length > 0)
+			tg.value += "\n";
+	});
 	stream_urls.addEventListener('input', (event) => {
 		let vals = event.target.value.split(/\s+/);
 		let last = vals.pop();
@@ -144,7 +149,7 @@ function register_handlers() {
 		} else if (viewports_update && (ws))
 			ws.send(JSON.stringify({request:"suggest_viewports",n_streams:stream_locations.length}));
 		//console.log(stream_locations);
-	})
+	});
 
 	/* display stuff */
 
