@@ -273,7 +273,6 @@ func stream_ctl(hub *StreamHub, client *Client, request map[string]interface {})
 	// sanitize val
 	re  := regexp.MustCompile(`[^a-zA-Z0-9]`)
 	val := re.ReplaceAllString(fmt.Sprint(value),"")
-
 	stream.Control(&StreamCtl{cmd:ctl, val:val})
 }
 
@@ -337,9 +336,11 @@ var req_handlers = map[string]RequestHandler{
 
 	"start_streams"      : start_streams,
 	"stop_streams"       : stop_streams,
+
 	"start_stream"       : start_stream,
 	"stop_stream"        : stop_stream,
 	"restart_stream"     : restart_stream,
+
 	"stream_ctl"         : stream_ctl,
 }
 
