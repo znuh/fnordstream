@@ -10,6 +10,13 @@ import (
 	"github.com/go-cmd/cmd"
 )
 
+type UserIntent int
+const (
+	UI_Stop		         UserIntent = iota
+	UI_Play
+	UI_Restart
+)
+
 type StreamState int
 const (
 	ST_Stopped           StreamState = iota
@@ -30,6 +37,7 @@ type Stream struct {
 	player_cfg              *PlayerConfig
 
 	state                    StreamState
+	user_intent              UserIntent
 
 	// stuff used by public Control/Start/Stop/Shutdown methods
 	ctl_chan                 chan *StreamCtl
@@ -117,9 +125,9 @@ func (stream * Stream) run() {
 				}
 
 				switch ctl.cmd {
-					case "start"   : stream.player_start()
-					case "stop"    : stream.player_stop(false, true)
-					case "restart" : fmt.Println("TBD: restart stream")
+					case "start"   : stream.stream_ctl(UI_Play)
+					case "stop"    : stream.stream_ctl(UI_Stop)
+					case "restart" : stream.stream_ctl(UI_Restart)
 					default        : stream.player_ctl(ctl)
 				}
 
@@ -146,6 +154,15 @@ func (stream * Stream) run() {
 		} // select
 	 } // for loop
 	stream.player_stop(false, true)
+}
+
+func (stream * Stream) stream_ctl(intent UserIntent) {
+	stream.user_intent = intent
+	switch intent {
+		case UI_Stop    : stream.player_stop(false, true)
+		case UI_Play    : stream.player_start()
+		case UI_Restart : fmt.Println("TBD: restart stream")
+	}
 }
 
 /* sends state change notifications & sets ticker for player start / IPC reconnect
