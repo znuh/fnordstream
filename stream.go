@@ -152,7 +152,7 @@ func (stream * Stream) run() {
  * doesn NOT invoke player_stop/_start (the latter is triggered via ticker)
  *
  * actions:
- * - ST_IPC_Connected    : NOP
+ * - ST_IPC_Connected    : send playing note
  * - ST_Starting         : set IPC reconnect ticker, send starting notification
  * - ST_Stopping         : send stopping/restarting notification
  * - ST_Stopped          : decide on restart, set ticker, send stopped/restarting notification
@@ -179,8 +179,6 @@ func (stream * Stream) state_change(new_state StreamState, cmd_status *cmd.Statu
 
 	stream.state = new_state
 
-	if stream.state == ST_IPC_Connected { return }   // ST_IPC_Connected: nothing to do
-
 	player_status := &PlayerStatus{}
 	delay         := time.Duration(-1)
 
@@ -189,6 +187,9 @@ func (stream * Stream) state_change(new_state StreamState, cmd_status *cmd.Statu
 		case ST_Starting:
 			player_status.Status = "starting"
 			delay                = time.Millisecond * 100    // IPC reconnect ticker
+
+		case ST_IPC_Connected:
+			player_status.Status = "playing"
 
 		case ST_Stopping:
 			if stream.user_restart {

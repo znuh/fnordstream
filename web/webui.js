@@ -625,13 +625,13 @@ function player_status(msg) {
 
 	const status = payload.status;
 
-	stream_nodes[stream_id].volume.disabled              = status != "started";
-	stream_nodes[stream_id].buffer.disabled              = status != "started";
-	stream_nodes[stream_id].muting.disabled              = status != "started";
-	stream_nodes[stream_id].exclusive_unmute.disabled    = status != "started";
-	stream_nodes[stream_id].stop.disabled                = status == "stopped";
-	stream_nodes[stream_id].play.disabled                = status == "started";
-	stream_nodes[stream_id].ffwd.disabled                = status != "started";
+	stream_nodes[stream_id].volume.disabled              = status != "playing";
+	stream_nodes[stream_id].buffer.disabled              = status != "playing";
+	stream_nodes[stream_id].muting.disabled              = status != "playing";
+	stream_nodes[stream_id].exclusive_unmute.disabled    = status != "playing";
+	stream_nodes[stream_id].stop.disabled                = (status == "stopped") || (status == "stopping");
+	stream_nodes[stream_id].play.disabled                = (status != "stopped") && (status != "stopping");
+	stream_nodes[stream_id].ffwd.disabled                = status != "playing";
 
 	//console.log("player_status", stream_id, status);
 }
