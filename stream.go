@@ -13,8 +13,9 @@ import (
 type StreamState int
 const (
 	ST_Stopped           StreamState = iota
-	ST_Started
+	ST_Starting
 	ST_IPC_Connected
+	ST_Stopping
 )
 
 type StreamCtl struct {
@@ -30,6 +31,7 @@ type Stream struct {
 	state                    StreamState
 	play                     bool              // play request from user -> true, stop request -> false
 	user_restart             bool              // user triggered restart (overrides auto-restart conditions)
+	user_stopped             bool              // player stop triggered by user (stop or restart)
 
 	// stuff used by public methods
 	ctl_chan                 chan *StreamCtl
@@ -104,16 +106,21 @@ func (stream * Stream) run() {
 				}
 
 				if ctl.cmd == "play" {
+
+					stream.play          = (ctl.val != "no")
+					stream.user_restart  = false
+
 					switch ctl.val {
-						case "yes":
-							stream.play = true
-							stream.player_start()
-						case "no":
-							stream.play = false
-							stream.player_stop()
+						case "yes"     : stream.player_start()
+						case "no"      : stream.player_stop()
 						case "restart" :
-							fmt.Println("TBD: restart stream")
-					}
+							if stream.state == ST_Stopped {
+								stream.player_start()
+							} else {
+								stream.user_restart = true
+								stream.player_stop()
+							}
+					} // ctl.val
 				} else { stream.player_ctl(ctl)	}
 
 			// command status channel for player command (fires on player exit)
@@ -132,7 +139,6 @@ func (stream * Stream) run() {
 				if ok { 
 					stream.notifications <- player_evt 
 				} else {
-					//fmt.Println("player_evt channel closed", stream.stream_id)
 					stream.ipc_shutdown()
 				}
 
@@ -144,13 +150,13 @@ func (stream * Stream) run() {
 
 /* sends state change notifications & sets ticker for player start / IPC reconnect
  * doesn NOT invoke player_stop/_start (the latter is triggered via ticker)
- * 
+ *
  * actions:
- * - ST_IPC_Connected        : NOP
- * - ST_Started              : set IPC reconnect ticker, send started notification
- * - ST_Stopped              : send stopped/restarting notification
- * - ST_Stopped & cmd.Status : decide on restart, set ticker, send stopped/restarting notification
- * 
+ * - ST_IPC_Connected    : NOP
+ * - ST_Starting         : set IPC reconnect ticker, send starting notification
+ * - ST_Stopping         : send stopping/restarting notification
+ * - ST_Stopped          : decide on restart, set ticker, send stopped/restarting notification
+ *
  * player exit codes:
  * - streamlink twitch user offline: ................. 1
  * - streamlink mpv twitch play until user quits mpv:  0
@@ -159,7 +165,7 @@ func (stream * Stream) run() {
  * - mpv play file until EOF ......................... 0
  * - mpv quit via IPC ................................ 4
  * - bash command not found: ....................... 127
- * 
+ *
  * restart if:
  * - user_restart OR
  * - cmd_status.Exit == 0 (player user_quit) && config.restart_user_quit OR
@@ -167,25 +173,31 @@ func (stream * Stream) run() {
  */
 func (stream * Stream) state_change(new_state StreamState, cmd_status *cmd.Status) {
 
-	if (stream.state == new_state) && (cmd_status == nil) { return }   // state didn't change - nothing to do
+	if stream.state == new_state { return }   // state didn't change - nothing to do
 
 	stream.ticker_stop()  // stop ticker first, restart if necessary
 
 	stream.state = new_state
 
-	if (stream.state == ST_IPC_Connected) { return }   // ST_IPC_Connected: nothing to do
+	if stream.state == ST_IPC_Connected { return }   // ST_IPC_Connected: nothing to do
 
 	player_status := &PlayerStatus{}
 	delay         := time.Duration(-1)
 
-	if stream.state == ST_Started {
-		player_status.Status = "started"
-		delay                = time.Millisecond * 100    // IPC reconnect ticker
-	} else { // ST_Stopped
+	switch stream.state {
 
-		// player stopped - setup ticker for restart if applicable
-		if cmd_status != nil {
+		case ST_Starting:
+			player_status.Status = "starting"
+			delay                = time.Millisecond * 100    // IPC reconnect ticker
 
+		case ST_Stopping:
+			if stream.user_restart {
+				player_status.Status = "restarting"
+			} else {
+				player_status.Status = "stopping"
+			}
+
+		case ST_Stopped:
 			// copy player exit status to notification
 			exit_code := cmd_status.Exit
 			player_status.Exit_code = &exit_code
@@ -195,22 +207,21 @@ func (stream * Stream) state_change(new_state StreamState, cmd_status *cmd.Statu
 
 			// restart player?
 			config := stream.player_cfg
-			//fmt.Println("restart?", stream.user_restart, stream.user_stopped, cmd_status.Exit, config.restart_user_quit, config.restart_error_delay)
 			if !stream.play { // don't restart
 			} else if stream.user_restart || ((cmd_status.Exit == 0) && config.restart_user_quit) {
 				delay = time.Millisecond * 10
 			} else if (cmd_status.Exit > 0) && (cmd_status.Exit < 127) {
 				delay = config.restart_error_delay
 			}
-		} // cmd_status != nil (player stop complete)
 
-		// supplement player status notification
-		if (delay > 0) || (stream.user_restart) {
-			player_status.Status = "restarting"
-		} else {
-			player_status.Status = "stopped"
-		}
-	}
+			// supplement player status notification
+			if (delay > 0) || (stream.user_restart) {
+				player_status.Status = "restarting"
+			} else {
+				player_status.Status = "stopped"
+			}
+			stream.user_stopped  = false
+	} // switch stream.state
 
 	if delay > 0 {
 		stream.ticker    = time.NewTicker(delay)
@@ -229,7 +240,7 @@ func (stream * Stream) state_change(new_state StreamState, cmd_status *cmd.Statu
 
 /* start player or IPC reconnect depending on state */
 func (stream *Stream) ticker_evt() {
-	if stream.state == ST_Started {
+	if stream.state == ST_Starting {
 		stream.player_events, _ = stream.ipc_start()
 	} else if stream.state == ST_Stopped {
 		stream.player_start()
@@ -260,28 +271,26 @@ func (stream * Stream) player_stopped(cmd_status *cmd.Status) {
  * - implicit stop for restart (invoked from player_start in latter case) */
 func (stream * Stream) player_stop() {
 
-	if stream.state == ST_Stopped { return }
+	if (stream.state == ST_Stopped) || (stream.state == ST_Stopping) { 
+		return
+	}
 
 	stream.player_ctl(&StreamCtl{cmd:"quit"})
-	//stream.ipc_good = false
 	stream.ipc_shutdown()
 
 	if stream.player_cmd != nil {
 		stream.player_cmd.Stop()
 		stream.player_cmd = nil
 	}
-	stream.state_change(ST_Stopped, nil)
+	stream.user_stopped  = true
+	stream.state_change(ST_Stopping, nil)
 }
 
 /* - triggered by user          : start a stopped stream
  * - triggered by player stopped: restart stream */
 func (stream * Stream) player_start() {
 
-	// restart?
-	if stream.state != ST_Stopped {
-		stream.player_stop()
-		return
-	}
+	if stream.state != ST_Stopped { return }
 
 	// clear user_restart (if set)
 	stream.user_restart = false
@@ -311,7 +320,7 @@ func (stream * Stream) player_start() {
 	stream.player_cmd  = cmd.NewCmdOptions(cmdOptions, player_cmd, player_args...)
 	stream.cmd_status  = stream.player_cmd.Start()
 
-	stream.state_change(ST_Started, nil)
+	stream.state_change(ST_Starting, nil)
 }
 
 /* send control command to player via IPC connection */
@@ -329,13 +338,10 @@ func (stream * Stream) player_ctl(ctl *StreamCtl) {
 
 /* shutdown IPC connection (if not yet done) */
 func (stream *Stream) ipc_shutdown() {
-	//if stream.ipc_conn != nil {
-	if stream.ipc_good {
-		stream.ipc_conn.Close()
-		stream.ipc_good      = false
-		stream.ipc_conn      = nil
-		stream.player_events = nil
-	}
+	if !stream.ipc_good { return }
+	stream.ipc_good      = false
+	stream.ipc_conn      = nil
+	stream.player_events = nil
 }
 
 /* start IPC connection to player
@@ -367,6 +373,7 @@ func (stream *Stream) ipc_start() (<-chan *Notification, error) {
 
 		defer func() {
 			close(notes)
+			ipc_conn.Close()
 		}()
 
 		const ignore = `"request_id":0,"error":"success"}`
