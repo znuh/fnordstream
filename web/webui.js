@@ -564,7 +564,11 @@ function mpv_property_changed(property, stream_id) {
 	};
 	const update_funcs = { /* node_name -> update function map */
 		"title"  : (n, v) => n.textContent = v,
-		"buffer" : (n, v) => n.textContent = "Buffer: " + Math.round(v*10)/10 + "s",
+		"buffer" : (n, v) => {
+				let str = Math.round(v*10)/10 + "";
+				str += (str.indexOf(".")>=0) ? "" : ".0";
+				n.textContent = "Buffer: " + str + "s";
+			},
 		"volume" : (n, v) => n.value       = v,
 		"muting" : (n, v) => n.checked     = !v,
 	};
