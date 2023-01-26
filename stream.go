@@ -118,8 +118,8 @@ func (stream * Stream) run() {
 			case ctl, ok := <- stream.ctl_chan:
 				if !ok {
 					stream.ctl_chan = nil
-					stream.request_state("stop")
-					break;
+					stream.request_state("no")
+					break
 				}
 
 				if ctl.cmd == "play" {
