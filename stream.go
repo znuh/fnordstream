@@ -6,9 +6,13 @@ import (
 	"time"
 	"bufio"
 	"strings"
+	"regexp"
+	"runtime"
 	"encoding/json"
 	"github.com/go-cmd/cmd"
 )
+
+const stream_debug = false
 
 type StreamState int
 const (
@@ -17,6 +21,14 @@ const (
 	ST_IPC_Connected
 	ST_Stopping
 )
+func (ss StreamState) String() string {
+    return [...]string{
+		"ST_Stopped",
+		"ST_Starting",
+		"ST_IPC_Connected",
+		"ST_Stopping",
+		}[ss]
+}
 
 type UserRequest int
 const (
@@ -25,6 +37,14 @@ const (
 	UR_Play
 	UR_Restart
 )
+func (ur UserRequest) String() string {
+    return [...]string{
+		"UR_Stop",
+		"UR_Start",
+		"UR_Play",
+		"UR_Restart",
+		}[ur]
+}
 
 type TickerTarget int
 const (
@@ -32,6 +52,13 @@ const (
 	TT_Player_Start
 	TT_IPC_Start
 )
+func (tt TickerTarget) String() string {
+    return [...]string{
+		"TT_None",
+		"TT_Player_Start",
+		"TT_IPC_Start",
+		}[tt]
+}
 
 type StreamCtl struct {
 	cmd       string
@@ -107,6 +134,18 @@ func (stream * Stream) Shutdown() {
 /* internal stuff follows
  * all internal functions are called from stream.run() goroutine */
 
+func (stream * Stream) debug() {
+	if !stream_debug { return }
+	pc, _, _, ok := runtime.Caller(1)
+	details := runtime.FuncForPC(pc)
+	if !ok || (details == nil) { return }
+	fn := details.Name()
+	re := regexp.MustCompile(`^.+\.`)
+	fn = re.ReplaceAllString(fn,"")
+	fmt.Printf("stream[%d].%-16s %-16s %-10s %-16s\n",
+		stream.stream_id, fn, stream.state, stream.target_state, stream.ticker_target)
+}
+
 /* started in goroutine from NewStream() */
 func (stream * Stream) run() {
 
@@ -129,6 +168,9 @@ func (stream * Stream) run() {
 			// command status channel for player command (fires on player exit)
 			case cmd_status := <- stream.cmd_status:
 				stream.cmd_status = nil
+				if stream_debug {
+					fmt.Println("cmd_status",stream.stream_id,cmd_status.Exit,stream.ticker_target)
+				}
 				stream.player_stopped(&cmd_status)
 
 			// timer
@@ -216,6 +258,7 @@ func (stream * Stream) schedule_restart(cmd_status *cmd.Status) time.Duration {
 }
 
 func (stream * Stream) player_stopped(cmd_status *cmd.Status) {
+	stream.debug()
 	stream.ticker_stop()
 	stream.state         = ST_Stopped
 	note                := "stopped"
@@ -254,6 +297,8 @@ func (stream * Stream) request_state(new_state string) {
 	if stream.target_state == target_state { return }  // no change
 	stream.target_state = target_state
 
+	stream.debug()
+
 	// send state change notification
 	switch stream.target_state {
 		case UR_Stop    : stream.send_status_note("stopping", nil)
@@ -276,6 +321,7 @@ func (stream * Stream) request_state(new_state string) {
 
 /* start player or IPC reconnect depending on state */
 func (stream *Stream) ticker_evt() {
+	stream.debug()
 	switch stream.ticker_target {
 		case TT_Player_Start:
 			stream.ticker_stop()
@@ -307,6 +353,7 @@ func (stream *Stream) ticker_stop() {
 }
 
 func (stream * Stream) player_stop() {
+	stream.debug()
 	// nothing to do?
 	if (stream.state == ST_Stopped) || (stream.state == ST_Stopping) { return }
 
@@ -332,6 +379,7 @@ func (stream * Stream) player_stop() {
 }
 
 func (stream * Stream) player_start() {
+	stream.debug()
 	config          := stream.player_cfg
 	player_cmd      := "streamlink"
 	var player_args  = []string{}
