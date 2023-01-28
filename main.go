@@ -3,11 +3,11 @@ package main
 import "flag"
 
 /* TODOs:
- * - web: fix stream status indicator
+ * - multi-monitor layout
  * - auto-sync for stream buffers
  *
  * - go: OSX monitor detection
- * - layout customisation (incl. multi-monitor)
+ * - layout customisation
  * - web: add support for remote displays?
  */
 func main() {
