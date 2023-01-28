@@ -623,10 +623,6 @@ function player_event(msg) {
 	if (event.event == "property-change") {
 		//console.log(stream_id, event);
 		mpv_property_changed(event, stream_id);
-	} else if (event.event == "playback-restart") {
-		stream_nodes[stream_id].playing.hidden  = false;
-		stream_nodes[stream_id].stopped.hidden  = true;
-		stream_nodes[stream_id].starting.hidden = true;
 	}
 	//else
 		//console.log(stream_id, event, msg);
@@ -652,16 +648,9 @@ function player_status(msg) {
 	stream_nodes[stream_id].play.disabled                = (status != "stopped") && (status != "stopping");
 	stream_nodes[stream_id].ffwd.disabled                = status != "playing";
 
-	if ((status == "stopped") || (status == "stopping")) {
-		stream_nodes[stream_id].playing.hidden  = true;
-		stream_nodes[stream_id].stopped.hidden  = false;
-		stream_nodes[stream_id].starting.hidden = true;
-	}
-	else if ((status == "starting") || (status == "restarting")) {
-		stream_nodes[stream_id].playing.hidden  = true;
-		stream_nodes[stream_id].stopped.hidden  = true;
-		stream_nodes[stream_id].starting.hidden = false;
-	}
+	stream_nodes[stream_id].playing.hidden               = status != "playing";
+	stream_nodes[stream_id].stopped.hidden               = (status != "stopped") && (status != "stopping");
+	stream_nodes[stream_id].starting.hidden              = (status != "starting") && (status != "restarting");
 
 	//console.log("player_status", stream_id, status);
 }

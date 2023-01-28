@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"encoding/json"
 	"github.com/go-cmd/cmd"
+	"github.com/mitchellh/mapstructure"
 )
 
 const stream_debug = false
@@ -181,8 +182,14 @@ func (stream * Stream) run() {
 			 * this is done to prevent player events arriving after
 			 * the player has been stopped */
 			case player_evt, ok := <-stream.player_events:
-				if ok { 
-					stream.notifications <- player_evt 
+				if ok {
+					stream.notifications <- player_evt
+					// change to playing status?
+					evt := PlayerEvent{}
+					mapstructure.Decode(player_evt.payload, &evt)
+					if evt.Event == "playback-restart" {
+						stream.send_status_note("playing", nil)
+					}
 				} else {
 					stream.ipc_shutdown()
 				}
@@ -465,7 +472,6 @@ func (stream *Stream) ipc_start() (<-chan *Notification, error) {
 	}
 
 	stream.state = ST_IPC_Connected
-	stream.send_status_note("playing", nil)
 
 	// receiver goroutine
 	go func() {
