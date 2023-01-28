@@ -135,8 +135,11 @@ function register_handlers() {
 	});
 	stream_urls.addEventListener('input', (event) => {
 		let vals = event.target.value.split(/\s+/);
+		let first = vals.shift();
+		if ((first) && (first.length > 0))
+			vals.unshift(first);
 		let last = vals.pop();
-		if (last.length > 0)
+		if ((last) && (last.length > 0))
 			vals.push(last);
 		const viewports_update = vals.length != stream_locations.length;
 		stream_locations = vals;
