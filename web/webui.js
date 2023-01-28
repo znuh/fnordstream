@@ -370,6 +370,7 @@ function setup_stream_controls() {
 		})
 
 		let buffer = replace_child(children,"stream-buffer-",i);
+		let vbr    = replace_child(children,"stream-vbr-",i);
 
 		let muting = replace_child(children,"stream-muting-",i);
 		muting.addEventListener('change', (event) => {
@@ -451,6 +452,7 @@ function setup_stream_controls() {
 			title            : title,
 			volume           : vol,
 			buffer           : buffer,
+			vbr              : vbr,
 			muting           : muting,
 			exclusive_unmute : exc_unmute,
 			stop             : stop,
@@ -572,6 +574,7 @@ function mpv_property_changed(property, stream_id) {
 		"media-title"            : "title",
 		"demuxer-cache-duration" : "buffer",
 		"mute"                   : "muting",
+		"video-bitrate"          : "vbr",
 	};
 	const update_funcs = { /* node_name -> update function map */
 		"title"  : (n, v) => n.textContent = v,
@@ -579,6 +582,11 @@ function mpv_property_changed(property, stream_id) {
 				let str = Math.round(v*10)/10 + "";
 				str += (str.indexOf(".")>=0) ? "" : ".0";
 				n.textContent = "Buffer: " + str + "s";
+			},
+		"vbr" : (n, v) => {
+				let str = Math.round(v/100000)/10 + "";
+				str += (str.indexOf(".")>=0) ? "" : ".0";
+				n.textContent = "VBR: " + str + "Mb/s";
 			},
 		"volume" : (n, v) => n.value       = v,
 		"muting" : (n, v) => n.checked     = !v,
@@ -697,6 +705,7 @@ function global_status(msg) {
 		if (!stream.properties)
 			continue;
 		for (const [key, value] of Object.entries(stream.properties)) {
+			//console.log(key,value);
 			player_event({"stream_id":i, "payload":{
 				"event" : "property-change",
 				"name"  : key,
