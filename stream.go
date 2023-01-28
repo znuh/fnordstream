@@ -491,13 +491,12 @@ func (stream *Stream) ipc_start() (<-chan *Notification, error) {
 
 		scanner := bufio.NewScanner(ipc_conn)
 		for scanner.Scan() {
-			tmp          := scanner.Bytes()
+			msg := scanner.Bytes()
+			if strings.Contains(string(msg), ignore) { continue }
 			// need to make a copy of the read data to prevent data race
 			// when slice data changes in scanner.Bytes()
-			json_message := make([]byte, len(tmp))
-			copy(json_message, tmp)
-			if strings.Contains(string(json_message), ignore) { continue }
-			//fmt.Println(string(data),"#")
+			json_message := make([]byte, len(msg))
+			copy(json_message, msg)
 
 			var payload interface{}
 			_ = json.Unmarshal(json_message, &payload)
