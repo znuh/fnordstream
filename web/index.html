@@ -188,9 +188,22 @@
             <!-- template -->
             <th scope="row" id="stream-idx-">0</th>
             <td> <!-- id="stream-ctl-"> -->
-              <div id="stream-title-">
-                (S) stream title
-              </div>
+			  <span>
+				  <span id="stream-playing-">
+					<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 100 100">
+						<circle cx="50" cy="50" r="30" fill="#00df00"></circle>
+					</svg>
+				  </span>
+				  <span id="stream-stopped-">
+					  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 100 100">
+						<circle cx="50" cy="50" r="30" fill="#df0000"></circle>
+					</svg>
+				  </span>
+					  <div id="stream-starting-" class="spinner-border spinner-border-sm" role="status">
+						<span class="visually-hidden">starting...</span>
+					  </div>
+				  <span id="stream-title-"></span>
+			  </span>
               <div class="container">
                 <div class="row">
                   <div class="col">

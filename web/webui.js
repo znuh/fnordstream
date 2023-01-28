@@ -441,6 +441,10 @@ function setup_stream_controls() {
 			}));
 		})
 
+		let stopped  = replace_child(children,"stream-stopped-",i);
+		let playing  = replace_child(children,"stream-playing-",i);
+		let starting = replace_child(children,"stream-starting-",i);
+
 		stream_nodes[i] = {
 			idx              : idx,
 			title            : title,
@@ -452,6 +456,9 @@ function setup_stream_controls() {
 			play             : play,
 			ffwd             : ffwd,
 			restart          : restart,
+			stopped          : stopped,
+			playing          : playing,
+			starting         : starting,
 		}
 
 		parent.appendChild(n);
@@ -639,6 +646,10 @@ function player_status(msg) {
 	stream_nodes[stream_id].stop.disabled                = (status == "stopped") || (status == "stopping");
 	stream_nodes[stream_id].play.disabled                = (status != "stopped") && (status != "stopping");
 	stream_nodes[stream_id].ffwd.disabled                = status != "playing";
+
+	stream_nodes[stream_id].playing.hidden               = status != "playing";
+	stream_nodes[stream_id].stopped.hidden               = (status != "stopped") && (status != "stopping");
+	stream_nodes[stream_id].starting.hidden              = (status != "starting") && (status != "restarting");
 
 	//console.log("player_status", stream_id, status);
 }

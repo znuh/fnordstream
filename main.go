@@ -3,7 +3,7 @@ package main
 import "flag"
 
 /* TODOs:
- * - web: add stream status indicator
+ * - web: fix stream status indicator
  * - auto-sync for stream buffers
  *
  * - go: OSX monitor detection
