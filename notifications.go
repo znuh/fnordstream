@@ -36,7 +36,7 @@ func player_status_update(hub *StreamHub, note *Notification) {
 	/* delete old properties */
 	if status.Status == "stopped" {
 		stream_status.Properties = nil
-	} else {
+	} else if (status.Status == "starting") {
 		stream_status.Properties = make(map[string]interface{})
 	}
 }

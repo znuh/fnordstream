@@ -198,6 +198,12 @@ func (stream * Stream) run() {
 	} // for loop
 }
 
+/* stopping   : stop in progress
+ * stopped    : player stopped w/o pending restart
+ * starting   : player startup triggered
+ * restarting : restart triggered by user - info for user(s) only
+ *              starting note will be sent when new player starts
+ * playing    : mpv started playing (triggered by playback-restart event received) */
 func (stream * Stream) send_status_note(status string, cmd_status *cmd.Status) {
 	if stream.last_status_note == status { return }
 	stream.last_status_note = status
