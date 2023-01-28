@@ -233,12 +233,13 @@ function register_handlers() {
 	tooltips_en.addEventListener('change', (event) => {
 	  if (!tooltipList) {
 		const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
-		tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl));
+		tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl =>
+			tooltipTriggerEl.id != "display-resolution-info" ? new bootstrap.Tooltip(tooltipTriggerEl) : null);
 	  }
 	  if (event.currentTarget.checked)
-		tooltipList.map(tt => tt.enable());
+		tooltipList.map(tt => tt ? tt.enable() : null);
 	  else
-		tooltipList.map(tt => tt.disable());
+		tooltipList.map(tt => tt ? tt.disable() : null);
 	})
 
 }
@@ -931,5 +932,7 @@ document.addEventListener("DOMContentLoaded", function() {
   });
 
   register_handlers();
+
+  const display_res_tt = new bootstrap.Tooltip(document.getElementById('display-resolution-info'));
   //window.setInterval(led_timer, refresh_delay);
 });
