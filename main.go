@@ -4,7 +4,6 @@ import "flag"
 
 /* TODOs:
  * - web: add stream status indicator
- * - go: switch stream to user_intent + FSM?
  * - auto-sync for stream buffers
  *
  * - go: OSX monitor detection

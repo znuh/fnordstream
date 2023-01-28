@@ -372,7 +372,12 @@ func (stream * Stream) player_stop() {
 	stream.player_ctl(&StreamCtl{cmd:"quit"})
 	stream.ipc_shutdown()
 
-	if stream.player_cmd != nil {
+	config := stream.player_cfg
+
+	// mpv won't shutdown properly with cmd.Stop() on windows
+	// therefor we must send a quit command via IPC instead
+	postpone_stop := (!config.use_streamlink) && (runtime.GOOS == "windows")
+	if (stream.player_cmd != nil) && (!postpone_stop) {
 		stream.player_cmd.Stop()
 		stream.player_cmd = nil
 	}
