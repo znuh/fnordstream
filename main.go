@@ -6,7 +6,7 @@ import (
 )
 
 /* TODOs:
- * - add proper README.md
+ * - add more console mode info in README.md
  * - multi-monitor layout
  * - auto-sync for stream buffers
  *
