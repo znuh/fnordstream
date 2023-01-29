@@ -3,7 +3,6 @@ package main
 import "flag"
 
 /* TODOs:
- * - add screen resolution info tooltip
  * - add proper README.md
  * - multi-monitor layout
  * - auto-sync for stream buffers

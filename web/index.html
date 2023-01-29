@@ -6,6 +6,11 @@
   <title>fnordstream - multiple streams, zero leaks</title>
   <link href="bootstrap-5.3.0-alpha1-dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
   <link href="bootstrap-icons.css" rel="stylesheet">
+  <style>
+  .tooltip-inner {
+    max-width: 400px !important;
+  }
+  </style>
 </head>
 <body>
   <ul class="nav nav-tabs" id="myTab" role="tablist">
@@ -78,7 +83,7 @@
                   <tr>
                     <th scope="col">Display</th>
                     <th scope="col">Position</th>
-                    <th scope="col">Resolution <i id="display-resolution-info" class="bi bi-info-circle-fill" data-bs-toggle="tooltip" data-bs-html="true" data-bs-title="TBD<br>foo"></i></th>
+                    <th scope="col">Resolution <i id="display-resolution-info" class="bi bi-info-circle-fill" data-bs-toggle="tooltip" data-bs-html="true" data-bs-tooltip-max-width="400px" data-bs-title="Display resolution can be wrong on Windows for display scaling other than 100% (e.g. for HiDPI displays).<br>You can enter any resultion, e.g. 640x480 or use abbreviations such as 2160p for 16:9 aspect ratios.<br>Switching the taskbar of your Desktop to auto-hide is recommended. (Otherwise Windows will substract the taskbar height from display height.)"></i></th>
                     <th scope="col">Use</th>
                   </tr>
                 </thead>
