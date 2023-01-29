@@ -1,6 +1,9 @@
 package main
 
-import "flag"
+import (
+	"flag"
+	"fmt"
+)
 
 /* TODOs:
  * - add proper README.md
@@ -12,6 +15,7 @@ import "flag"
  * - web: add support for remote displays?
  */
 func main() {
+	fmt.Println("fnordstream v"+version_info)
 	no_web      := flag.Bool("no-web", false, "disable webui")
 	listen_addr := flag.String("listen-addr", "localhost:8090", "listen address for web UI")
 	webui_acl   := flag.String("allowed-ips", "<ANY>", "allowed IPs for web UI (ranges/netmasks allowed, separate multiple with a comma)")

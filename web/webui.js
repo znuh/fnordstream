@@ -684,6 +684,9 @@ function global_status(msg) {
 
 	if ((!status) || (status.length < 1))
 		return;
+
+	document.title = "fnordstream v"+status.version+" @"+window.location.host;
+
 	streams_playing(status.playing);
 
 	if (!status.playing)

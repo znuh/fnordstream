@@ -7,9 +7,26 @@ import (
 	"regexp"
 	"strconv"
 	"runtime"
+	//"runtime/debug"
 	"encoding/json"
 	"github.com/mitchellh/mapstructure"
 )
+
+var version_info = "0.2"
+
+/*
+var version_info = func() string {
+    if info, ok := debug.ReadBuildInfo(); ok {
+		//fmt.Println(info)
+        for _, setting := range info.Settings {
+            if setting.Key == "vcs.revision" {
+                return setting.Value
+            }
+        }
+    }
+    return ""
+}()
+*/
 
 type RequestHandler func(*StreamHub, *Client, map[string]interface {})
 
@@ -216,6 +233,7 @@ func stop_streams(hub *StreamHub, client *Client, request map[string]interface {
 
 func global_status(hub *StreamHub, client *Client, request map[string]interface {}) {
 	note := map[string]interface{}{
+		"version" : version_info,
 		"playing" : hub.streams_playing,
 	}
 	if hub.streams_playing {
