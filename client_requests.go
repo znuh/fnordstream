@@ -57,48 +57,56 @@ func auto_layout(hub *StreamHub, n_streams int) []Geometry {
 
 	displays       := hub.displays
 
-	/* find first display with use=true */
-	i := 0
-	for i=0; i<len(hub.displays); i++ {
-		if displays[i].Use { break }
+	/* count usable displays (Use==true) */
+	n_displays := 0
+	for i:=0; i<len(hub.displays); i++ {
+		if displays[i].Use { n_displays++ }
 	}
 
-	/* no (enabled) display found? */
-	if !(i<len(displays)) {
+	/* no usable display found? */
+	if (n_displays < 1) {
 		hub.viewports = viewports
 		return viewports
 	}
 
-	x_ofs, y_ofs   := displays[i].Geo.X, displays[i].Geo.Y
-	w, h           := displays[i].Geo.W, displays[i].Geo.H
-	part           := int(math.Ceil(math.Sqrt(float64(n_streams))))
-	w_step, h_step := w/part, h/part
+	fmt.Printf("n_displays: %d, n_streams: %d\n", n_displays, n_streams)
 
-	fmt.Printf("   display[%d] (%s) resolution: %dx%d\n",i,displays[i].Name,w,h)
-	fmt.Printf("   n_streams: %d - using %dx%d grid (%dx%d)\n",n_streams,part,part,w_step,h_step)
+	/* iterate over displays again, allocate viewports */
+	for i:=0; (n_streams>0) && (n_displays>0); i++ {
+		display := displays[i]
+		if !display.Use { continue }
 
-	/* TODO:
-	 * - better layout?
-	 * - multi-monitor */
+		x_ofs, y_ofs   := display.Geo.X, display.Geo.Y
+		w, h           := display.Geo.W, display.Geo.H
+		grid           := int(math.Ceil(math.Sqrt(math.Ceil(float64(n_streams)/float64(n_displays)))))
+		disp_streams   := grid*grid
+		if n_streams < disp_streams { disp_streams = n_streams }  // clamp number of viewports to n_streams
+		w_step, h_step := w/grid, h/grid
 
-	center_ofs := 0
-	for idx := 0; idx < n_streams; idx++ {
-		col, row := idx%part, idx/part
+		fmt.Printf("   display[%d] (%s) resolution: %dx%d\n",i,display.Name,w,h)
+		fmt.Printf("   disp_streams: %d - using %dx%d grid (%dx%d)\n",disp_streams,grid,grid,w_step,h_step)
 
-		/* center viewports of last row */
-		if (col == 0) && ((idx+part)>n_streams) {
-			used       := n_streams - idx
-			free       := part - used
-			center_ofs  = (free * w_step) / 2
+		center_ofs := 0
+		for idx := 0; idx < disp_streams; idx++ {
+			col, row := idx%grid, idx/grid
+
+			/* center viewports of last row */
+			if (col == 0) && ((idx+grid)>disp_streams) {
+				used       := disp_streams - idx
+				free       := grid - used
+				center_ofs  = (free * w_step) / 2
+			}
+			vp := Geometry{
+				W : w_step,
+				H : h_step,
+				X : x_ofs + col*w_step + center_ofs,
+				Y : y_ofs + row*h_step,
+			}
+			viewports = append(viewports, vp)
+			//fmt.Println(idx,row,col)
 		}
-		vp := Geometry{
-			W : w_step,
-			H : h_step,
-			X : x_ofs + col*w_step + center_ofs,
-			Y : y_ofs + row*h_step,
-		}
-		viewports = append(viewports, vp)
-		//fmt.Println(idx,row,col)
+		n_streams-= disp_streams
+		n_displays--
 	}
 
 	hub.viewports = viewports
@@ -145,6 +153,10 @@ func start_streams(hub *StreamHub, client *Client, request map[string]interface 
 	}
 	if len(viewports) < len(locations) {
 		viewports = auto_layout(hub, len(locations))
+	}
+	// final sanity check
+	if (len(locations)<1) || (len(viewports) < len(locations)) {
+		return
 	}
 
 	/* check & adopt options */

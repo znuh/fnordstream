@@ -7,7 +7,6 @@ import (
 
 /* TODOs:
  * - add more console mode info in README.md
- * - multi-monitor layout
  * - auto-sync for stream buffers
  *
  * - go: OSX monitor detection

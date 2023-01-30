@@ -20,7 +20,7 @@ func pshell_read() []Display {
 	status := <-ctx.StartWithStdin(strings.NewReader(ps))
 
 	var displays  []Display
-	var disp        Display
+	disp := Display{Use:true}
 
     for _, line := range status.Stdout {
         var k, v string
@@ -51,7 +51,7 @@ func xrandr_read() []Display {
 	var displays  []Display
 
     for _, line := range status.Stdout {
-		var disp Display
+		disp := Display{Use:true}
 		geo := &disp.Geo
 		name1 := ""
 		idx, phys_w, phys_h := 0, 0, 0
@@ -74,9 +74,7 @@ func displays_detect() []Display {
 	case "linux":
 		res = xrandr_read()
 	default:
-	}
-	if len(res) > 0 {
-		res[0].Use = true
+		fmt.Println("no display detection for OS:",runtime.GOOS,"!")
 	}
 	return res
 }
