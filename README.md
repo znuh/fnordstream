@@ -16,7 +16,7 @@
 * For normal web UI mode just start fnordstream and open http://localhost:8090 in your browser
 * Use *fnordstream -h* for help
 * You can allow remote clients by changing the listen address with the **-listen-addr** option
-* If you set the listen address to something other than localhost you **MUST** provide a comma separated whitelist of allowed clients<br>with **-allowed-ips**. Web UI access will be restricted to clients given in this list.
+* If you set the listen address to something other than localhost you **MUST** provide a comma separated whitelist of allowed clients with **-allowed-ips**. Web UI access will be restricted to clients given in this list.
 * **-allowed-ips** may contain single IPs, from-to ranges and IP ranges in CIDR notation.<br>
 e.g. *-allowed-ips=127.0.0.1,::1,192.168.1.0/24,192.168.2.3,192.168.3.1-192.168.3.23*
 * Console mode can be invoked by supplying a profile name or an extra file as last argument.<br>
