@@ -123,6 +123,7 @@ func auth_check(w http.ResponseWriter, req *http.Request, acl iprange.Pool) bool
 	ip, _, _ := net.SplitHostPort(req.RemoteAddr)
 	allowed  := acl.Contains(net.ParseIP(ip))
 	if !allowed {
+		log.Println("client",ip,"not authorized in whitelist")
 		returnCode403(w, req)
 	}
 	return allowed
