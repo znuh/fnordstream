@@ -23,3 +23,26 @@ e.g. *-allowed-ips=127.0.0.1,::1,192.168.1.0/24,192.168.2.3,192.168.3.1-192.168.
 * Console mode can be invoked by supplying a profile name or an extra file as last argument.<br>
 e.g. *fnordstream Demo*
 * The web UI can be disabled with **-no-web** for console-only mode.
+
+## console mode
+* You can either specify a profile name from the stream_profiles.json file (e.g. *fnordstream Demo*) or supply a simple list of streams with one URL per line.<br>Example: *echo -e "https://vimeo.com/640499893\nhttps://vimeo.com/325910798\nhttps://vimeo.com/1084537" | ./fnordstream -*
+* Streamlist filename **-** will make fnordstream read the list from stdin.
+* *./fnordstream console-test.txt* will make fnordstream read the list from the file *console-test.txt*
+* You can also add options in this text file, e.g.:
+
+        restart_error=false
+        restart_user_quit=false
+        use_streamlink=false
+        twitch-disable-ads=false
+        https://vimeo.com/640499893
+        https://vimeo.com/325910798
+        https://vimeo.com/1084537
+
+* You can also add custom viewports to the screens, e.g.:
+
+        https://vimeo.com/640499893 480 270 0 0
+        https://vimeo.com/325910798 480 270 480 0
+        https://vimeo.com/1084537 480 270 960 0
+
+* Viewport definition is: &lt;width&gt; &lt;height&gt; &lt;x&gt; &lt;y&gt;
+* If you do not add viewport definitions to the streams fnordstream will auto-generate a suitable layout.
