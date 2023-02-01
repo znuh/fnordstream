@@ -12,7 +12,7 @@ import (
 	"github.com/mitchellh/mapstructure"
 )
 
-var version_info = "0.2"
+var version_info = "0.3-dev"
 
 /*
 var version_info = func() string {
@@ -52,22 +52,17 @@ func detect_displays(hub *StreamHub, client *Client, request map[string]interfac
 	}()
 }
 
-func auto_layout(hub *StreamHub, n_streams int) []Geometry {
+func auto_layout(displays []Display, n_streams int) []Geometry {
 	viewports := []Geometry{}
-
-	displays       := hub.displays
 
 	/* count usable displays (Use==true) */
 	n_displays := 0
-	for i:=0; i<len(hub.displays); i++ {
+	for i:=0; i<len(displays); i++ {
 		if displays[i].Use { n_displays++ }
 	}
 
 	/* no usable display found? */
-	if (n_displays < 1) {
-		hub.viewports = viewports
-		return viewports
-	}
+	if (n_displays < 1) { return viewports }
 
 	fmt.Printf("n_displays: %d, n_streams: %d\n", n_displays, n_streams)
 
@@ -109,7 +104,6 @@ func auto_layout(hub *StreamHub, n_streams int) []Geometry {
 		n_displays--
 	}
 
-	hub.viewports = viewports
 	return viewports
 }
 
@@ -120,7 +114,19 @@ func suggest_viewports(hub *StreamHub, client *Client, request map[string]interf
 	n_streams := int(tmp)
 	if n_streams < 1 { return }
 
-	viewports := auto_layout(hub, n_streams)
+	/* optional param: temporary list of displays - not saved.
+	 * if no displays are provided hub.displays are used */
+	displays := []Display{}
+	err := mapstructure.Decode(request["displays"], &displays)
+	if (err != nil) || (len(displays)<1) {
+		displays = hub.displays
+	}
+
+	/* retain viewports unless user supplies discard=true */
+	discard, _ := request["discard"].(bool)
+
+	viewports := auto_layout(displays, n_streams)
+	if !discard { hub.viewports = viewports }
 	send      := hub.notifications
 	send_response(send, client, "viewports", viewports)
 }
@@ -149,10 +155,10 @@ func start_streams(hub *StreamHub, client *Client, request map[string]interface 
 	viewports := []Geometry{}
 	mapstructure.Decode(request["viewports"], &viewports)
 	if len(viewports) < len(locations) {
-		viewports = hub.viewports
+		viewports     = hub.viewports
 	}
 	if len(viewports) < len(locations) {
-		viewports = auto_layout(hub, len(locations))
+		viewports     = auto_layout(hub.displays, len(locations))
 	}
 	// final sanity check
 	if (len(locations)<1) || (len(viewports) < len(locations)) {
