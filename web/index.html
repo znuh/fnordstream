@@ -75,19 +75,18 @@
           "#panelsStayOpen-collapseTwo" aria-expanded="true" aria-controls="panelsStayOpen-collapseTwo">Viewports Layout</button></h2>
           <div id="panelsStayOpen-collapseTwo" class="accordion-collapse collapse show" aria-labelledby="panelsStayOpen-headingTwo">
             <div class="accordion-body">
-              <table class="table caption-top" style="max-width: 600px;">
-                <caption>
-                  Detected Displays:
-                </caption>
+				<b>Detected Displays:</b>
+              <table id="display-table-" class="table caption-top" style="max-width: 600px;">
+                <caption id="display-host-"></caption>
                 <thead>
                   <tr>
                     <th scope="col">Display</th>
                     <th scope="col">Position</th>
-                    <th scope="col">Resolution <i id="display-resolution-info" class="bi bi-info-circle-fill" data-bs-toggle="tooltip" data-bs-html="true" data-bs-tooltip-max-width="400px" data-bs-title="Display resolution can be wrong on Windows for display scaling other than 100% (e.g. for HiDPI displays).<br>You can enter any resultion, e.g. 640x480 or use abbreviations such as 2160p for 16:9 aspect ratios.<br>Switching the taskbar of your Desktop to auto-hide is recommended. (Otherwise Windows will substract the taskbar height from display height.)"></i></th>
+                    <th scope="col">Resolution <i class="bi bi-info-circle-fill" data-bs-toggle="tooltip" data-bs-html="true" data-bs-tooltip-max-width="400px" data-bs-title="Display resolution can be wrong on Windows for display scaling other than 100% (e.g. for HiDPI displays).<br>You can enter any resultion, e.g. 640x480 or use abbreviations such as 2160p for 16:9 aspect ratios.<br>Switching the taskbar of your Desktop to auto-hide is recommended. (Otherwise Windows will substract the taskbar height from display height.)"></i></th>
                     <th scope="col">Use</th>
                   </tr>
                 </thead>
-                <tbody id="displays-table">
+                <tbody>
                   <tr id="display-" hidden="">
                     <!-- template -->
                     <th scope="row" id="display-name-">Default</th>
@@ -99,13 +98,13 @@
                     </td>
                   </tr>
                 </tbody>
-              </table><button type="button" class="btn btn-secondary btn-sm" id="refresh_displays"><i class=
+              </table><button type="button" class="btn btn-secondary btn-sm" id="refresh_displays-"><i class=
               "bi bi-arrow-clockwise"></i>&nbsp;Refresh</button><br>
               &nbsp;
               <div style="position: relative;">
-                <canvas id="displays" width="100" height="100" style="position: absolute; left: 0; top: 0; z-index: 0;"></canvas>
+                <canvas id="displays-" width="100" height="100" style="position: absolute; left: 0; top: 0; z-index: 0;"></canvas>
                 <!-- https://developer.mozilla.org/en-US/docs/Web/CSS/mix-blend-mode -->
-                <canvas id="viewports" width="100" height="100" style="left: 0; top: 0; z-index: 1; background-color: transparent; mix-blend-mode: darken;">
+                <canvas id="viewports-" width="100" height="100" style="left: 0; top: 0; z-index: 1; background-color: transparent; mix-blend-mode: darken;">
                 </canvas><!-- mix-blend-mode: lighten; -->
               </div>
             </div>

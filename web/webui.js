@@ -156,7 +156,7 @@ function register_handlers() {
 
 	/* display stuff */
 
-	const disp_refresh = document.getElementById('refresh_displays');
+	const disp_refresh = document.getElementById('refresh_displays-');
 	disp_refresh.addEventListener('click', (event) => {
 		if(ws) {
 			ws.send(JSON.stringify({request:"detect_displays"}));
@@ -271,7 +271,7 @@ function replace_child(list,id,ext) {
 
 function draw_viewports() {
 	const lightmode = document.getElementById('lightSwitch').checked;
-	const cv      = document.getElementById("viewports");
+	const cv      = document.getElementById("viewports-");
 	const ctx     = cv.getContext("2d");
 	cv.style["mix-blend-mode"] = lightmode ? 'darken' : 'lighten';
 	ctx.textAlign = 'center';
@@ -309,7 +309,7 @@ function draw_displays() {
 	w_ext/=8; h_ext/=8;
 
 	const font_h = 20;
-	const cv = document.getElementById("displays");
+	const cv = document.getElementById("displays-");
 	cv.width  = w_ext+8;
 	cv.height = h_ext+font_h*2;
 
@@ -330,7 +330,7 @@ function draw_displays() {
 		ctx.fillText(displays[i].name, 3.5+geo.x/8 + geo.w/16, (geo.y/8)+(geo.h/8)+font_h-2, geo.w/8);
 	}
 
-	const cv2 = document.getElementById("viewports");
+	const cv2 = document.getElementById("viewports-");
 	cv2.width  = w_ext+8;
 	cv2.height = h_ext+20;
 
@@ -927,13 +927,16 @@ document.addEventListener("DOMContentLoaded", function() {
 		JSON.stringify({request : "get_profiles"})+
 		JSON.stringify({request : "probe_commands"})
 		);
-    document.getElementById('refresh_displays').dispatchEvent(new Event("click"));
+    document.getElementById('refresh_displays-').dispatchEvent(new Event("click"));
     document.getElementById('stream_urls').dispatchEvent(new Event("input"));
     console.log("websock opened");
   });
 
   register_handlers();
 
-  const display_res_tt = new bootstrap.Tooltip(document.getElementById('display-resolution-info'));
+  // create non-hidden tooltips
+  const info_tooltips = document.querySelectorAll('[class="bi bi-info-circle-fill"]');
+  [...info_tooltips].map(node => new bootstrap.Tooltip(node));
+
   //window.setInterval(led_timer, refresh_delay);
 });
