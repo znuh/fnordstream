@@ -1,20 +1,20 @@
 
 let ws = null;
 
-let displays         = [{"name":"Default","use":true,"geo":{"x":0,"y":0,"w":0,"h":0}}];
-
 let stream_profiles  = {};
 let selected_profile = null;
 
 let stream_locations = [];
 let stream_nodes     = [];
+
+let displays         = [{"name":"Default","use":true,"geo":{"x":0,"y":0,"w":0,"h":0}}];
 let viewports        = [];
 
 let streams_active   = undefined;
 
 let tooltipList      = undefined;
 
-function ws_closed() {
+function ws_closed(evt) {
   console.log("websock closed");
   ws = null;
 }
