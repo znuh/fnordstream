@@ -6,7 +6,7 @@ let displays         = [{"name":"Default","use":true,"geo":{"x":0,"y":0,"w":0,"h
 let stream_profiles  = {};
 let selected_profile = null;
 
-let stream_locations = {};
+let stream_locations = [];
 let stream_nodes     = [];
 let viewports        = [];
 
