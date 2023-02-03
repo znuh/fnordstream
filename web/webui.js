@@ -911,12 +911,12 @@ function ws_rx(evt) {
 	}
 }
 
-document.addEventListener("DOMContentLoaded", function() {
-  displays[0].geo.w = window.screen.width;
-  displays[0].geo.h = window.screen.height;
-  update_displays();
+function create_displays(conn_id) {
+	document.getElementById('refresh_displays-').dispatchEvent(new Event("click"));
+}
 
-  let websock = new WebSocket("ws://"+window.location.host+"/ws");
+function add_connection(dst) {
+  let websock = new WebSocket("ws://"+dst+"/ws");
   websock.onclose = ws_closed;
   websock.onmessage = ws_rx;
   
@@ -924,13 +924,22 @@ document.addEventListener("DOMContentLoaded", function() {
 	ws = websock;
 	ws.send(
 		JSON.stringify({request : "global_status"})+
-		JSON.stringify({request : "get_profiles"})+
+		JSON.stringify({request : "get_profiles"})+    // TODO: only for primary connection
 		JSON.stringify({request : "probe_commands"})
 		);
-    document.getElementById('refresh_displays-').dispatchEvent(new Event("click"));
+	const conn_id = 0; // TBD
+	create_displays(conn_id);
     document.getElementById('stream_urls').dispatchEvent(new Event("input"));
     console.log("websock opened");
   });
+}
+
+document.addEventListener("DOMContentLoaded", function() {
+  displays[0].geo.w = window.screen.width;
+  displays[0].geo.h = window.screen.height;
+  update_displays();
+
+  add_connection(window.location.host);
 
   register_handlers();
 
