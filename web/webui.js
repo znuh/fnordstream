@@ -14,6 +14,8 @@ let streams_active   = undefined;
 
 let tooltipList      = undefined;
 
+let fnordstreams     = [];
+
 function ws_closed(evt) {
   console.log("websock closed");
   ws = null;
@@ -154,15 +156,6 @@ function register_handlers() {
 		//console.log(stream_locations);
 	});
 
-	/* display stuff */
-
-	const disp_refresh = document.getElementById('refresh_displays-');
-	disp_refresh.addEventListener('click', (event) => {
-		if(ws) {
-			ws.send(JSON.stringify({request:"detect_displays"}));
-		}
-	})
-
 	/* options */
 
 	const streamlink = document.getElementById('use_streamlink');
@@ -244,34 +237,9 @@ function register_handlers() {
 
 }
 
-function replace_child(list,id,ext) {
-	if ((!list) || (list.length < 1))
-		return;
-
-	let res = null;
-	for (let i=0;i<list.length;i++) {
-		let n = list[i];
-
-		/* replace for-tags as well */
-		if (n.attributes && n.attributes["for"] && (n.attributes["for"].value == id)) {
-			n.attributes["for"].value += ext;
-		}
-
-		if (n.id == id) {
-			n.id += ext;
-			res = n;
-		}
-
-		let res2 = replace_child(n.childNodes, id, ext);
-		if (res2)
-			res = res2;
-	}
-	return res;
-}
-
 function draw_viewports() {
 	const lightmode = document.getElementById('lightSwitch').checked;
-	const cv      = document.getElementById("viewports-");
+	const cv      = document.getElementById("viewports-0");
 	const ctx     = cv.getContext("2d");
 	cv.style["mix-blend-mode"] = lightmode ? 'darken' : 'lighten';
 	ctx.textAlign = 'center';
@@ -309,7 +277,8 @@ function draw_displays() {
 	w_ext/=8; h_ext/=8;
 
 	const font_h = 20;
-	const cv = document.getElementById("displays-");
+	const cv = document.getElementById("displays-0");
+	if (!cv) return;
 	cv.width  = w_ext+8;
 	cv.height = h_ext+font_h*2;
 
@@ -330,7 +299,7 @@ function draw_displays() {
 		ctx.fillText(displays[i].name, 3.5+geo.x/8 + geo.w/16, (geo.y/8)+(geo.h/8)+font_h-2, geo.w/8);
 	}
 
-	const cv2 = document.getElementById("viewports-");
+	const cv2 = document.getElementById("viewports-0");
 	cv2.width  = w_ext+8;
 	cv2.height = h_ext+20;
 
@@ -490,7 +459,7 @@ function set_displays() {
 }
 
 function update_displays() {
-	let template = document.getElementById('display-');
+	let template = document.getElementById('display-0');
 	let parent   = template.parentNode;
 	parent.replaceChildren(template);
 
@@ -501,13 +470,13 @@ function update_displays() {
 		n.id += i;
 		n.hidden = false;
 
-		let name = replace_child(children,"display-name-",i);
+		let name = replace_child(children,"display-name-0-",i);
 		name.textContent = d.name;
 
-		let pos = replace_child(children,"display-pos-",i);
+		let pos = replace_child(children,"display-pos-0-",i);
 		pos.textContent = d.geo.x + "," + d.geo.y;
 
-		let res = replace_child(children,"display-res-",i);
+		let res = replace_child(children,"display-res-0-",i);
 		res.value = d.geo.w + "x" + d.geo.h;
 		res.addEventListener('change', (event) => {
 			let disp_id = parseInt(event.target.id.match(/(\d+)$/)[0]);
@@ -531,7 +500,7 @@ function update_displays() {
 			set_displays();
 		})
 
-		let use = replace_child(children,"display-use-",i);
+		let use = replace_child(children,"display-use-0-",i);
 		use.checked = d.use;
 		use.addEventListener('change', (event) => {
 			let disp_id = parseInt(event.target.id.match(/(\d+)$/)[0]);
@@ -911,41 +880,113 @@ function ws_rx(evt) {
 	}
 }
 
-function create_displays(conn_id) {
-	document.getElementById('refresh_displays-').dispatchEvent(new Event("click"));
+/*
+function lookup_node(nodelist, id) {
+	nodelist.forEach(node => {
+		console.log(node);
+	});
+}
+*/
+
+function replace_child(list,id,ext) {
+	if ((!list) || (list.length < 1))
+		return;
+
+	let res = null;
+	for (let i=0;i<list.length;i++) {
+		let n = list[i];
+
+		/* replace for-tags as well */
+		if (n.attributes && n.attributes["for"] && (n.attributes["for"].value == id)) {
+			n.attributes["for"].value += ext;
+		}
+
+		if (n.id == id) {
+			n.id += ext;
+			res = n;
+		}
+
+		let res2 = replace_child(n.childNodes, id, ext);
+		if (res2)
+			res = res2;
+	}
+	return res;
+}
+
+function replace_children(nodelist, new_extension, node_table) {
+	if ((!nodelist) || (nodelist.length < 1))
+		return 0;
+	let i=0;
+	nodelist.forEach(n => {
+		/* process for-tags as well */
+		if (n.attributes && n.attributes["for"] && (n.attributes["for"].value.slice(-1) == "-"))
+			n.attributes["for"].value += new_extension;
+
+		if (n.id && (n.id.slice(-1) == "-")) {
+			if (node_table)
+				node_table[n.id.slice(0,-1)] = n;
+			n.id += new_extension;
+			i++;
+		}
+
+		i+=replace_children(n.childNodes, new_extension, node_table);
+	});
+	return i;
+}
+
+function create_displays(conn_id, nodes) {
+	let template = document.getElementById('display_table-');
+	let parent   = template.parentNode;
+	parent.replaceChildren(template);
+
+	let n = template.cloneNode(true);
+	let children = n.childNodes;
+	n.id += conn_id;
+	n.hidden = false;
+
+	nodes.display_table = n;
+	replace_children(children, conn_id, nodes);
+
+	nodes.refresh_displays.addEventListener('click', (event) => {
+		if(ws) {
+			ws.send(JSON.stringify({request:"detect_displays"}));
+		}
+	});
+
+	const info_tt = new bootstrap.Tooltip(nodes.display_info);
+
+	parent.appendChild(n);
+	nodes.refresh_displays.dispatchEvent(new Event("click"));
 }
 
 function add_connection(dst) {
   let websock = new WebSocket("ws://"+dst+"/ws");
+  let conn_id = -1;
+
+  // TODO
   websock.onclose = ws_closed;
   websock.onmessage = ws_rx;
-  
+
   websock.addEventListener('open', (event) => {
-	ws = websock;
+	conn_id = fnordstreams.length;
+	let fnordstream = {
+		websock       : websock,
+		display_nodes : {},
+	};
+	fnordstreams.push(fnordstream);
+	ws = websock; // TBD
 	ws.send(
 		JSON.stringify({request : "global_status"})+
 		JSON.stringify({request : "get_profiles"})+    // TODO: only for primary connection
 		JSON.stringify({request : "probe_commands"})
 		);
-	const conn_id = 0; // TBD
-	create_displays(conn_id);
+	create_displays(conn_id, fnordstream.display_nodes);
     document.getElementById('stream_urls').dispatchEvent(new Event("input"));
-    console.log("websock opened");
+    console.log("websock opened",conn_id);
   });
 }
 
 document.addEventListener("DOMContentLoaded", function() {
-  displays[0].geo.w = window.screen.width;
-  displays[0].geo.h = window.screen.height;
-  update_displays();
-
   add_connection(window.location.host);
-
   register_handlers();
-
-  // create non-hidden tooltips
-  const info_tooltips = document.querySelectorAll('[class="bi bi-info-circle-fill"]');
-  [...info_tooltips].map(node => new bootstrap.Tooltip(node));
-
-  //window.setInterval(led_timer, refresh_delay);
 });
