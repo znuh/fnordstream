@@ -515,7 +515,7 @@ function update_displays() {
 	draw_displays();
 }
 
-function displays_notification(msg) {
+function displays_notification(fnordstream, msg) {
 	if (ws)
 		ws.send(JSON.stringify({request : "suggest_viewports", n_streams : stream_locations.length}));
 	v = msg.payload
@@ -530,7 +530,7 @@ function displays_notification(msg) {
 	update_displays();
 }
 
-function viewports_notification(msg) {
+function viewports_notification(fnordstream, msg) {
 	v = msg.payload
 	if ((!v) || (v.length < 1))
 		v = [];
@@ -587,7 +587,7 @@ function mpv_property_changed(property, stream_id) {
 
 }
 
-function player_event(msg) {
+function player_event(fnordstream, msg) {
 	const event = msg.payload;
 
 	if ((!event) || (event.length < 1))
@@ -605,7 +605,7 @@ function player_event(msg) {
 		//console.log(stream_id, event, msg);
 }
 
-function player_status(msg) {
+function player_status(fnordstream, msg) {
 	const payload = msg.payload;
 
 	if ((!payload) || (payload.length < 1))
@@ -648,7 +648,7 @@ function streams_playing(active) {
 	document.getElementById('control-tab').disabled = !active;
 }
 
-function global_status(msg) {
+function global_status(fnordstream, msg) {
 	const status = msg.payload;
 
 	if ((!status) || (status.length < 1))
@@ -746,7 +746,7 @@ function populate_cmds_table(cmds) {
 
 let cmd_modal = undefined;
 
-function commands_probed(msg) {
+function commands_probed(fnordstream, msg) {
 
 	const results = msg.payload;
 	if ((!results) || (results.length < 1))
@@ -851,7 +851,7 @@ function commands_probed(msg) {
 	populate_cmds_table(results);
 }
 
-function profiles_notification(msg) {
+function profiles_notification(fnordstream, msg) {
 	const profiles = msg.payload;
 	update_stream_profiles(profiles);
 }
@@ -865,20 +865,6 @@ const ws_handlers = {
 	"player_event"   : player_event,
 	"player_status"  : player_status,
 };
-
-function ws_rx(evt) {
-	const msgs = evt.data.split('\n').map(s => s.length > 1 ? JSON.parse(s) : undefined);
-	for (msg of msgs) {
-		if (msg == undefined) continue;
-		//console.log(msg);
-		if (msg.notification && ws_handlers[msg.notification]) {
-			ws_handlers[msg.notification](msg);
-		}
-		else {
-			console.log(msg);
-		}
-	}
-}
 
 /*
 function lookup_node(nodelist, id) {
@@ -961,16 +947,15 @@ function create_displays(conn_id, nodes) {
 
 function add_connection(dst) {
   let websock = new WebSocket("ws://"+dst+"/ws");
-  let conn_id = -1;
+  let fnordstream = {};
 
   // TODO
   websock.onclose = ws_closed;
-  websock.onmessage = ws_rx;
 
   websock.addEventListener('open', (event) => {
-	conn_id = fnordstreams.length;
-	let fnordstream = {
+	fnordstream = {
 		websock       : websock,
+		conn_id       : fnordstreams.length,
 		display_nodes : {},
 	};
 	fnordstreams.push(fnordstream);
@@ -980,10 +965,26 @@ function add_connection(dst) {
 		JSON.stringify({request : "get_profiles"})+    // TODO: only for primary connection
 		JSON.stringify({request : "probe_commands"})
 		);
-	create_displays(conn_id, fnordstream.display_nodes);
+	create_displays(fnordstream.conn_id, fnordstream.display_nodes);
     document.getElementById('stream_urls').dispatchEvent(new Event("input"));
-    console.log("websock opened",conn_id);
+    console.log("websock opened",fnordstream.conn_id);
   });
+
+  websock.addEventListener('message', (evt) => {
+	const msgs = evt.data.split('\n').map(s => s.length > 1 ? JSON.parse(s) : undefined);
+	for (msg of msgs) {
+		if (msg == undefined) continue;
+		//console.log(msg);
+		if (msg.notification && ws_handlers[msg.notification]) {
+			ws_handlers[msg.notification](fnordstream, msg);
+		}
+		else {
+			console.log(msg);
+		}
+	}
+    //console.log(fnordstream);
+  });
+
 }
 
 document.addEventListener("DOMContentLoaded", function() {
