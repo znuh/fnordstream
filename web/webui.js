@@ -16,11 +16,6 @@ let tooltipList      = undefined;
 
 let fnordstreams     = [];
 
-function ws_closed(evt) {
-  console.log("websock closed");
-  ws = null;
-}
-
 function append_option(select,val,txt,selected) {
 	var opt = document.createElement("option");
 	opt.value       = val;
@@ -226,6 +221,7 @@ function register_handlers() {
 	tooltips_en.addEventListener('change', (event) => {
 	  if (!tooltipList) {
 		const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+		// TODO: FIXME id="display_info-" class="bi bi-info-circle-fill"
 		tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl =>
 			tooltipTriggerEl.id != "display-resolution-info" ? new bootstrap.Tooltip(tooltipTriggerEl) : null);
 	  }
@@ -235,75 +231,6 @@ function register_handlers() {
 		tooltipList.map(tt => tt ? tt.disable() : null);
 	})
 
-}
-
-function draw_viewports() {
-	const lightmode = document.getElementById('lightSwitch').checked;
-	const cv      = document.getElementById("viewports-0");
-	const ctx     = cv.getContext("2d");
-	cv.style["mix-blend-mode"] = lightmode ? 'darken' : 'lighten';
-	ctx.textAlign = 'center';
-
-	/* clear canvas */
-	ctx.fillStyle = lightmode ? '#ffffff' : '#000000';
-	ctx.fillRect(0, 0, cv.width, cv.height);
-
-	for (let i=0;i<viewports.length;i++) {
-		const geo = viewports[i];
-
-		//ctx.fillStyle='#aaaaaa';
-		//ctx.fillRect(3.5+geo.x/8, 0.5+geo.y/8, geo.w/8, geo.h/8);
-		ctx.strokeStyle = lightmode ? "#000000" : "#ffffff";
-		ctx.strokeRect(3.5+geo.x/8, 0.5+geo.y/8, geo.w/8, geo.h/8);
-
-		const font_h  = geo.h/16;
-		ctx.fillStyle = lightmode ? "#000000" : "#ffffff";
-		ctx.font      = font_h+'px sans-serif';
-		ctx.fillText(i, 3.5+geo.x/8 + geo.w/16, (geo.y/8)+(geo.h/16)+(font_h/2)-2, geo.w/8);
-	}
-}
-
-function draw_displays() {
-	const lightmode = document.getElementById('lightSwitch').checked;
-
-	let w_ext=0, h_ext=0
-	for (let i=0;i<displays.length;i++) {
-		const geo = displays[i].geo;
-		w_ext = Math.max(w_ext, geo.x + geo.w);
-		h_ext = Math.max(h_ext, geo.y + geo.h);
-	}
-
-	//console.log("extents:",w_ext,h_ext);
-	w_ext/=8; h_ext/=8;
-
-	const font_h = 20;
-	const cv = document.getElementById("displays-0");
-	if (!cv) return;
-	cv.width  = w_ext+8;
-	cv.height = h_ext+font_h*2;
-
-	const ctx = cv.getContext("2d");
-	ctx.font = font_h+'px sans-serif';
-	ctx.textAlign = 'center';
-
-	ctx.fillStyle = lightmode ? '#ffffff' : '#000000';
-	ctx.fillRect(0, 0, cv.width, cv.height);
-
-	for (let i=0;i<displays.length;i++) {
-		const geo = displays[i].geo;
-		ctx.fillStyle = lightmode ? '#dddddd' : '#666666';
-		ctx.fillRect(3.5+geo.x/8, 0.5+geo.y/8, geo.w/8, geo.h/8);
-		ctx.strokeStyle = lightmode ? "#000000" : "#ffffff";
-		ctx.strokeRect(3.5+geo.x/8, 0.5+geo.y/8, geo.w/8, geo.h/8);
-		ctx.fillStyle = lightmode ? "#000000" : "#ffffff";
-		ctx.fillText(displays[i].name, 3.5+geo.x/8 + geo.w/16, (geo.y/8)+(geo.h/8)+font_h-2, geo.w/8);
-	}
-
-	const cv2 = document.getElementById("viewports-0");
-	cv2.width  = w_ext+8;
-	cv2.height = h_ext+20;
-
-	draw_viewports();
 }
 
 function setup_stream_controls() {
@@ -437,20 +364,78 @@ function setup_stream_controls() {
 	}
 }
 
-function ws_sendmulti(exempt, request, ctl, value) {
-	if(!ws) return;
-	let msg = "";
-	for (let i=0;i<stream_locations.length;i++) {
-		if(i==exempt) continue;
-		msg += JSON.stringify(
-			{
-				request     : request,
-				stream_id   : i,
-				ctl         : ctl,
-				value       : value,
-			});
+function draw_viewports(fnordstream) {
+	const lightmode = document.getElementById('lightSwitch').checked;
+	const cv      = fnordstream.display_nodes.viewports_cv;
+	const ctx     = cv.getContext("2d");
+	cv.style["mix-blend-mode"] = lightmode ? 'darken' : 'lighten';
+	ctx.textAlign = 'center';
+
+	/* clear canvas */
+	ctx.fillStyle = lightmode ? '#ffffff' : '#000000';
+	ctx.fillRect(0, 0, cv.width, cv.height);
+
+	for (let i=0;i<viewports.length;i++) {
+		const geo = viewports[i];
+
+		//ctx.fillStyle='#aaaaaa';
+		//ctx.fillRect(3.5+geo.x/8, 0.5+geo.y/8, geo.w/8, geo.h/8);
+		ctx.strokeStyle = lightmode ? "#000000" : "#ffffff";
+		ctx.strokeRect(3.5+geo.x/8, 0.5+geo.y/8, geo.w/8, geo.h/8);
+
+		const font_h  = geo.h/16;
+		ctx.fillStyle = lightmode ? "#000000" : "#ffffff";
+		ctx.font      = font_h+'px sans-serif';
+		ctx.fillText(i, 3.5+geo.x/8 + geo.w/16, (geo.y/8)+(geo.h/16)+(font_h/2)-2, geo.w/8);
 	}
-	ws.send(msg);
+}
+
+function draw_displays(fnordstream) {
+	/* redraw all if not specified */
+	if (!fnordstream) {
+		fnordstreams.forEach(draw_displays);
+		return;
+	}
+	const lightmode = document.getElementById('lightSwitch').checked;
+
+	let w_ext=0, h_ext=0
+	for (let i=0;i<displays.length;i++) {
+		const geo = displays[i].geo;
+		w_ext = Math.max(w_ext, geo.x + geo.w);
+		h_ext = Math.max(h_ext, geo.y + geo.h);
+	}
+
+	//console.log("extents:",w_ext,h_ext);
+	w_ext/=8; h_ext/=8;
+
+	const font_h = 20;
+	const cv = fnordstream.display_nodes.displays_cv;
+	if (!cv) return;
+	cv.width  = w_ext+8;
+	cv.height = h_ext+font_h*2;
+
+	const ctx = cv.getContext("2d");
+	ctx.font = font_h+'px sans-serif';
+	ctx.textAlign = 'center';
+
+	ctx.fillStyle = lightmode ? '#ffffff' : '#000000';
+	ctx.fillRect(0, 0, cv.width, cv.height);
+
+	for (let i=0;i<displays.length;i++) {
+		const geo = displays[i].geo;
+		ctx.fillStyle = lightmode ? '#dddddd' : '#666666';
+		ctx.fillRect(3.5+geo.x/8, 0.5+geo.y/8, geo.w/8, geo.h/8);
+		ctx.strokeStyle = lightmode ? "#000000" : "#ffffff";
+		ctx.strokeRect(3.5+geo.x/8, 0.5+geo.y/8, geo.w/8, geo.h/8);
+		ctx.fillStyle = lightmode ? "#000000" : "#ffffff";
+		ctx.fillText(displays[i].name, 3.5+geo.x/8 + geo.w/16, (geo.y/8)+(geo.h/8)+font_h-2, geo.w/8);
+	}
+
+	const cv2 = fnordstream.display_nodes.viewports_cv;
+	cv2.width  = w_ext+8;
+	cv2.height = h_ext+20;
+
+	draw_viewports(fnordstream);
 }
 
 function set_displays() {
@@ -458,10 +443,11 @@ function set_displays() {
 	ws.send(JSON.stringify({request : "set_displays", displays : displays}));
 }
 
-function update_displays() {
-	let template = document.getElementById('display-0');
-	let parent   = template.parentNode;
-	parent.replaceChildren(template);
+function update_displays(fnordstream) {
+	const target   = fnordstream.display_nodes.display_tbody;
+	const template = document.getElementById('display_tr-');
+
+	target.replaceChildren();
 
 	for (let i=0;i<displays.length;i++) {
 		const d = displays[i];
@@ -470,15 +456,13 @@ function update_displays() {
 		n.id += i;
 		n.hidden = false;
 
-		let name = replace_child(children,"display-name-0-",i);
-		name.textContent = d.name;
+		let nodes = {};
+		replace_nodes(children, i, nodes);
 
-		let pos = replace_child(children,"display-pos-0-",i);
-		pos.textContent = d.geo.x + "," + d.geo.y;
-
-		let res = replace_child(children,"display-res-0-",i);
-		res.value = d.geo.w + "x" + d.geo.h;
-		res.addEventListener('change', (event) => {
+		nodes.display_name.textContent = d.name;
+		nodes.display_pos.textContent  = d.geo.x + "," + d.geo.y;
+		nodes.display_res.value        = d.geo.w + "x" + d.geo.h;
+		nodes.display_res.addEventListener('change', (event) => {
 			let disp_id = parseInt(event.target.id.match(/(\d+)$/)[0]);
 			let d       = displays[disp_id];
 			let val     = event.target.value;
@@ -495,24 +479,22 @@ function update_displays() {
 					d.geo.w = Math.floor(w/9);
 				}
 			}
-			res.value = d.geo.w + "x" + d.geo.h;
-			draw_displays();
+			event.target.value = d.geo.w + "x" + d.geo.h;
+			draw_displays(fnordstream);
 			set_displays();
 		})
-
-		let use = replace_child(children,"display-use-0-",i);
-		use.checked = d.use;
-		use.addEventListener('change', (event) => {
+		nodes.display_use.checked = d.use;
+		nodes.display_use.addEventListener('change', (event) => {
 			let disp_id = parseInt(event.target.id.match(/(\d+)$/)[0]);
 			let d = displays[disp_id];
 			d.use = event.target.checked;
 			set_displays();
 		})
 
-		parent.appendChild(n);
+		target.appendChild(n);
 	} /* foreach display */
 
-	draw_displays();
+	draw_displays(fnordstream);
 }
 
 function displays_notification(fnordstream, msg) {
@@ -522,12 +504,12 @@ function displays_notification(fnordstream, msg) {
 	if ((!v) || (v.length < 1)) {
 		const toast = new bootstrap.Toast(document.getElementById('displaydetect_failed'));
 		toast.show();
-		displays = [{"name":"Default","use":true,"geo":{"x":0,"y":0,"w":window.screen.width,"h":window.screen.height}}];
-		set_displays();
+		//displays = [{"name":"Default","use":true,"geo":{"x":0,"y":0,"w":window.screen.width,"h":window.screen.height}}];
+		//set_displays();
 		return;
 	}
 	displays = v;
-	update_displays();
+	update_displays(fnordstream);
 }
 
 function viewports_notification(fnordstream, msg) {
@@ -535,10 +517,10 @@ function viewports_notification(fnordstream, msg) {
 	if ((!v) || (v.length < 1))
 		v = [];
 	viewports = v;
-	draw_viewports();
+	draw_viewports(fnordstream);
 }
 
-function mpv_property_changed(property, stream_id) {
+function mpv_property_changed(fnordstream, property, stream_id) {
 	const property_map = { /* property -> node_name map */
 		"media-title"            : "title",
 		"demuxer-cache-duration" : "buffer",
@@ -599,7 +581,7 @@ function player_event(fnordstream, msg) {
 
 	if (event.event == "property-change") {
 		//console.log(stream_id, event);
-		mpv_property_changed(event, stream_id);
+		mpv_property_changed(event, stream_id, fnordstream);
 	}
 	//else
 		//console.log(stream_id, event, msg);
@@ -686,7 +668,6 @@ function global_status(fnordstream, msg) {
 		}
 	}
 }
-
 
 const required_commands = {
 	"mpv"        : true,
@@ -852,6 +833,7 @@ function commands_probed(fnordstream, msg) {
 }
 
 function profiles_notification(fnordstream, msg) {
+	if (!fnordstream.primary) return;
 	const profiles = msg.payload;
 	update_stream_profiles(profiles);
 }
@@ -865,14 +847,6 @@ const ws_handlers = {
 	"player_event"   : player_event,
 	"player_status"  : player_status,
 };
-
-/*
-function lookup_node(nodelist, id) {
-	nodelist.forEach(node => {
-		console.log(node);
-	});
-}
-*/
 
 function replace_child(list,id,ext) {
 	if ((!list) || (list.length < 1))
@@ -899,7 +873,7 @@ function replace_child(list,id,ext) {
 	return res;
 }
 
-function replace_children(nodelist, new_extension, node_table) {
+function replace_nodes(nodelist, new_extension, node_table) {
 	if ((!nodelist) || (nodelist.length < 1))
 		return 0;
 	let i=0;
@@ -915,15 +889,15 @@ function replace_children(nodelist, new_extension, node_table) {
 			i++;
 		}
 
-		i+=replace_children(n.childNodes, new_extension, node_table);
+		i+=replace_nodes(n.childNodes, new_extension, node_table);
 	});
 	return i;
 }
 
-function create_displays(conn_id, nodes) {
+function create_displays(conn_id, nodes, server) {
 	let template = document.getElementById('display_table-');
 	let parent   = template.parentNode;
-	parent.replaceChildren(template);
+	//parent.replaceChildren(template);
 
 	let n = template.cloneNode(true);
 	let children = n.childNodes;
@@ -931,13 +905,14 @@ function create_displays(conn_id, nodes) {
 	n.hidden = false;
 
 	nodes.display_table = n;
-	replace_children(children, conn_id, nodes);
+	replace_nodes(children, conn_id, nodes);
 
 	nodes.refresh_displays.addEventListener('click', (event) => {
 		if(ws) {
 			ws.send(JSON.stringify({request:"detect_displays"}));
 		}
 	});
+	nodes.display_host.textContent = "@"+server+":";
 
 	const info_tt = new bootstrap.Tooltip(nodes.display_info);
 
@@ -949,15 +924,15 @@ function add_connection(dst) {
   let websock = new WebSocket("ws://"+dst+"/ws");
   let fnordstream = {};
 
-  // TODO
-  websock.onclose = ws_closed;
-
   websock.addEventListener('open', (event) => {
 	fnordstream = {
+		peer          : dst,
 		websock       : websock,
 		conn_id       : fnordstreams.length,
 		display_nodes : {},
+		stream_nodes  : {},
 	};
+	fnordstream.primary = fnordstream.conn_id == 0;
 	fnordstreams.push(fnordstream);
 	ws = websock; // TBD
 	ws.send(
@@ -965,7 +940,7 @@ function add_connection(dst) {
 		JSON.stringify({request : "get_profiles"})+    // TODO: only for primary connection
 		JSON.stringify({request : "probe_commands"})
 		);
-	create_displays(fnordstream.conn_id, fnordstream.display_nodes);
+	create_displays(fnordstream.conn_id, fnordstream.display_nodes, fnordstream.peer.split(":")[0]);
     document.getElementById('stream_urls').dispatchEvent(new Event("input"));
     console.log("websock opened",fnordstream.conn_id);
   });
@@ -985,6 +960,28 @@ function add_connection(dst) {
     //console.log(fnordstream);
   });
 
+  websock.addEventListener('close', (event) => {
+	  fnordstream.websock = null;
+	  // TODO: cleanup nodes
+	  ws = null; // TBD
+	  console.log("websock closed", fnordstream.conn_id);
+  });
+}
+
+function ws_sendmulti(exempt, request, ctl, value) {
+	if(!ws) return;
+	let msg = "";
+	for (let i=0;i<stream_locations.length;i++) {
+		if(i==exempt) continue;
+		msg += JSON.stringify(
+			{
+				request     : request,
+				stream_id   : i,
+				ctl         : ctl,
+				value       : value,
+			});
+	}
+	ws.send(msg);
 }
 
 document.addEventListener("DOMContentLoaded", function() {

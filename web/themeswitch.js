@@ -11,19 +11,19 @@
 
   const getPreferredTheme = () => {
     if (storedTheme) {
-      return storedTheme
+      return storedTheme;
     }
 
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   }
 
   const setTheme = function (theme) {
     if (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      document.documentElement.setAttribute('data-bs-theme', 'dark')
+      document.documentElement.setAttribute('data-bs-theme', 'dark');
     } else {
-      document.documentElement.setAttribute('data-bs-theme', theme)
+      document.documentElement.setAttribute('data-bs-theme', theme);
     }
-    draw_displays()
+    draw_displays();
   }
 
   setTheme(getPreferredTheme())
@@ -35,7 +35,7 @@
 
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
     if (storedTheme !== 'light' || storedTheme !== 'dark') {
-      setTheme(getPreferredTheme())
+      setTheme(getPreferredTheme());
     }
   })
 
@@ -44,9 +44,9 @@
     const lightSwitch = document.getElementById('lightSwitch');
     lightSwitch.addEventListener('change', () => {
 		const theme = lightSwitch.checked ? 'light' : 'dark';
-		localStorage.setItem('theme', theme)
-        setTheme(theme)
-        showActiveTheme(theme)
+		localStorage.setItem('theme', theme);
+        setTheme(theme);
+        showActiveTheme(theme);
 	});
   })
 })()

@@ -75,9 +75,9 @@
           "#panelsStayOpen-collapseTwo" aria-expanded="true" aria-controls="panelsStayOpen-collapseTwo">Viewports Layout</button></h2>
           <div id="panelsStayOpen-collapseTwo" class="accordion-collapse collapse show" aria-labelledby="panelsStayOpen-headingTwo">
             <div class="accordion-body">
-				<table> <!-- dummy table to hold the display template -->
-					<!-- display template -->
-                  <tr id="display-" hidden>
+				<table hidden> <!-- dummy table to hold the display template -->
+					<!-- display row template for display_tbody- -->
+                  <tr id="display_tr-">
                     <th scope="row" id="display_name-">Default</th>
                     <td id="display_pos-">0,0</td>
                     <td><input type="text" class="form-control" id="display_res-" style="max-width: 200px;"></td>
@@ -88,6 +88,7 @@
                   </tr>
 				</table>
 				<b>Detected Displays:</b>
+				<div>
 				<!-- host template -->
 				<div id="display_table-" hidden>
               <table class="table caption-top" style="max-width: 600px;">
@@ -100,20 +101,20 @@
                     <th scope="col">Use</th>
                   </tr>
                 </thead>
-                <tbody>
-                </tbody>
+                <tbody id="display_tbody-"></tbody>
               </table><button type="button" class="btn btn-secondary btn-sm" id="refresh_displays-"><i class=
               "bi bi-arrow-clockwise"></i>&nbsp;Refresh</button><br>
               &nbsp;
-              <div style="position: relative;">
-                <canvas id="displays-" width="100" height="100" style="position: absolute; left: 0; top: 0; z-index: 0;"></canvas>
+              <div class="mb-3" style="position: relative;">
+                <canvas id="displays_cv-" width="100" height="100" style="position: absolute; left: 0; top: 0; z-index: 0;"></canvas>
                 <!-- https://developer.mozilla.org/en-US/docs/Web/CSS/mix-blend-mode -->
-                <canvas id="viewports-" width="100" height="100" style="left: 0; top: 0; z-index: 1; background-color: transparent; mix-blend-mode: darken;">
+                <canvas id="viewports_cv-" width="100" height="100" style="left: 0; top: 0; z-index: 1; background-color: transparent; mix-blend-mode: darken;">
                 </canvas><!-- mix-blend-mode: lighten; -->
               </div>
               </div>
-            </div>
-          </div>
+              </div> <!-- display_table -->
+            </div> <!-- none -->
+          </div> <!-- accordion-body -->
         </div>
         <div class="accordion-item">
           <h2 class="accordion-header" id="panelsStayOpen-headingThree"><button class="accordion-button" type="button" data-bs-toggle="collapse"
