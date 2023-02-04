@@ -14,7 +14,8 @@ let streams_active   = undefined;
 
 let tooltipList      = undefined;
 
-let fnordstreams     = [];
+let conn_id          = 0;
+let fnordstreams     = {};
 
 function append_option(select,val,txt,selected) {
 	var opt = document.createElement("option");
@@ -393,7 +394,7 @@ function draw_viewports(fnordstream) {
 function draw_displays(fnordstream) {
 	/* redraw all if not specified */
 	if (!fnordstream) {
-		fnordstreams.forEach(draw_displays);
+		Object.values(fnordstreams).map(v => v.peer ? draw_displays(v) : null);
 		return;
 	}
 	const lightmode = document.getElementById('lightSwitch').checked;
@@ -921,19 +922,22 @@ function create_displays(conn_id, nodes, server) {
 }
 
 function add_connection(dst) {
-  let websock = new WebSocket("ws://"+dst+"/ws");
+  dst += dst.search(":")<0 ? ":8090" : "";
+  if (fnordstreams[dst]) return; // check for duplicate connections
+
+  const websock = new WebSocket("ws://"+dst+"/ws");
   let fnordstream = {};
 
   websock.addEventListener('open', (event) => {
 	fnordstream = {
 		peer          : dst,
 		websock       : websock,
-		conn_id       : fnordstreams.length,
+		conn_id       : conn_id++,
 		display_nodes : {},
-		stream_nodes  : {},
+		//stream_nodes  : {},
 	};
 	fnordstream.primary = fnordstream.conn_id == 0;
-	fnordstreams.push(fnordstream);
+	fnordstreams[dst]   = fnordstream;
 	ws = websock; // TBD
 	ws.send(
 		JSON.stringify({request : "global_status"})+
@@ -942,7 +946,7 @@ function add_connection(dst) {
 		);
 	create_displays(fnordstream.conn_id, fnordstream.display_nodes, fnordstream.peer.split(":")[0]);
     document.getElementById('stream_urls').dispatchEvent(new Event("input"));
-    console.log("websock opened",fnordstream.conn_id);
+    console.log("websock opened",fnordstream.conn_id,dst);
   });
 
   websock.addEventListener('message', (evt) => {
@@ -961,10 +965,12 @@ function add_connection(dst) {
   });
 
   websock.addEventListener('close', (event) => {
+	  fnordstream.peer    = null;
 	  fnordstream.websock = null;
 	  // TODO: cleanup nodes
+	  delete(fnordstreams[dst]);
 	  ws = null; // TBD
-	  console.log("websock closed", fnordstream.conn_id);
+	  console.log("websock closed", fnordstream.conn_id,dst);
   });
 }
 
