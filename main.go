@@ -14,9 +14,10 @@ import (
  */
 func main() {
 	fmt.Println("fnordstream v"+version_info)
-	no_web      := flag.Bool("no-web", false, "disable webui")
-	listen_addr := flag.String("listen-addr", "localhost:8090", "listen address for web UI")
-	webui_acl   := flag.String("allowed-ips", "<ANY>", "allowed IPs for web UI (ranges/netmasks allowed, separate multiple with a comma)")
+	no_web          := flag.Bool("no-web", false, "disable webui")
+	listen_addr     := flag.String("listen-addr", "localhost:8090", "listen address for web UI")
+	webui_acl       := flag.String("allowed-ips", "<ANY>", "allowed IPs for web UI (ranges/netmasks allowed, separate multiple with a comma)")
+	allowed_origins := flag.String("allowed-origins", "", "allowed Origins for secondary mode operation (separate multiple with a comma)")
 	flag.Parse()
 
 	shub := NewStreamHub()
@@ -26,6 +27,6 @@ func main() {
 		console_client(shub, flag.Args()[0], *no_web)
 	}
 	if !(*no_web) {
-		webif_run(shub, *listen_addr, *webui_acl)
+		webif_run(shub, *listen_addr, *webui_acl, *allowed_origins)
 	}
 }
