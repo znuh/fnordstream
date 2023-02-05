@@ -215,10 +215,9 @@ function register_handlers() {
 
 	const streams_quit = document.getElementById('streams_quit');
 	streams_quit.addEventListener('click', (event) => {
-	  if(ws)
-		ws.send(JSON.stringify({request : "stop_streams"}));
-		streams_playing(false);
-	})
+		ws_send({request : "stop_streams"});
+		//streams_playing(false);
+	});
 
 	const tooltips_en = document.getElementById('tooltips_enable');
 	tooltips_en.addEventListener('change', (event) => {
@@ -618,7 +617,7 @@ function player_event(fnordstream, msg) {
 
 	if (event.event == "property-change") {
 		//console.log(stream_id, event);
-		mpv_property_changed(event, stream_id, fnordstream);
+		mpv_property_changed(fnordstream, event, stream_id);
 	}
 	//else
 		//console.log(stream_id, event, msg);
@@ -692,12 +691,12 @@ function global_status(fnordstream, msg) {
 	/* set status and properties for all streams */
 	for (let i=0;i<streams.length;i++) {
 		const stream = streams[i];
-		player_status({"stream_id":i, "payload":{"status":stream.player_status}});
+		player_status(fnordstream, {"stream_id":i, "payload":{"status":stream.player_status}});
 		if (!stream.properties)
 			continue;
 		for (const [key, value] of Object.entries(stream.properties)) {
 			//console.log(key,value);
-			player_event({"stream_id":i, "payload":{
+			player_event(fnordstream, {"stream_id":i, "payload":{
 				"event" : "property-change",
 				"name"  : key,
 				"data"  : value,
