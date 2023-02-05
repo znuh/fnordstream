@@ -16,7 +16,7 @@ let global           = {            // assembled data from individual fnordstrea
 	displays  : [],
 
 	update_displays : function() {
-		this.displays = Object.values(fnordstreams).map(v => v.displays);
+		this.displays = Object.values(fnordstreams).flatMap(v => v.displays);
 	}
 };
 
@@ -536,6 +536,7 @@ function viewports_notification(fnordstream, msg) {
 	v = msg.payload
 	if ((!v) || (v.length < 1))
 		v = [];
+	// TODO: assign viewports to fnordstream instances
 	fnordstream.viewports = v;
 	draw_viewports(fnordstream);
 }
