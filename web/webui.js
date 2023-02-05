@@ -79,7 +79,7 @@ function register_handlers() {
 		delete stream_profiles[profile_name.value];
 		selected_profile = undefined;
 		update_stream_profiles();
-	})
+	});
 
 	/* save profile */
 	profile_save.addEventListener('click', (event) => {
@@ -96,18 +96,18 @@ function register_handlers() {
 		stream_profiles[profile_name.value] = profile;
 		selected_profile = profile_name.value;
 		update_stream_profiles();
-	})
+	});
 
 	profile_name.addEventListener('input', (event) => {
 	  profile_save.disabled = profile_name.value == "";
-	})
+	});
 
 	// save/use viewports from profile?
 	profile_viewports_en.addEventListener('change', (event) => {
 		if (!event.currentTarget.checked)
 			global.stream_locations = []; // trigger viewports update in stream_urls.input
 		stream_urls.dispatchEvent(new Event("input"));
-	})
+	});
 
 	/* streams */
 
@@ -116,14 +116,14 @@ function register_handlers() {
 	streams_start.addEventListener('click', (event) => {
 		const options = gather_options();
 		streams_playing(true);
-		Object.values(fnordstreams).map(v =>
+		Object.values(fnordstreams).map(v => {
 			v.ws_send({                         // send start to all fnordstream instances
 				request   : "start_streams",
 				streams   : v.stream_locations,
 				viewports : v.viewports,
-				options   : options,
-			})
-		);
+				options   : options
+			});
+		});
 	});
 
 	/* stream URLs changed */
@@ -367,8 +367,21 @@ function setup_stream_controls() {
 }
 
 function assign_viewports() {
-	// TODO: assign global.viewports to fnordstream instances
-	draw_viewports();
+	// clear assigned viewports and streams first
+	Object.values(fnordstreams).map(v => {
+		v.viewports = [];
+		v.stream_locations = [];
+	});
+	const viewports        = global.viewports;
+	const stream_locations = global.stream_locations;
+	// assign global.viewports and stream_location to fnordstream instances
+	viewports.forEach( (vp, idx) => {
+		const stream_location = stream_locations[idx];
+		const fnordstream = primary;     // TODO
+		fnordstream.viewports.push(vp);
+		fnordstream.stream_locations.push(stream_location);
+	});
+	draw_viewports();  // redraw viewports
 }
 
 function draw_viewports(fnordstream) {
