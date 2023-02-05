@@ -1,6 +1,4 @@
 
-let ws = null;
-
 let stream_profiles  = {};
 let selected_profile = null;
 
@@ -11,8 +9,16 @@ let streams_active   = undefined;
 
 let tooltipList      = undefined;
 
-let conn_id          = 0;
-let fnordstreams     = {};
+let conn_id          = 0;           // connection id counter - increments on connection open
+let fnordstreams     = {};          // fnordstreams instances (connections to servers, etc.)
+let primary          = undefined;   // primary fnordstream instance
+let global           = {            // assembled data from individual fnordstream instances
+	displays  : [],
+
+	update_displays : function() {
+		this.displays = Object.values(fnordstreams).map(v => v.displays);
+	}
+};
 
 function append_option(select,val,txt,selected) {
 	var opt = document.createElement("option");
@@ -144,8 +150,8 @@ function register_handlers() {
 			stream_profiles[selected_profile].viewports.length >= stream_profiles[selected_profile].stream_locations.length) {
 			viewports = stream_profiles[selected_profile].viewports;
 			draw_viewports();
-		} else if (viewports_update && (ws))
-			ws.send(JSON.stringify({request:"suggest_viewports",n_streams:stream_locations.length}));
+		} else if (viewports_update)
+			request_viewports();
 		//console.log(stream_locations);
 	});
 
@@ -444,11 +450,10 @@ function draw_displays(fnordstream) {
 }
 
 function set_displays(fnordstream) {
-	if(!ws) return;
-	ws.send(JSON.stringify({request : "set_displays", displays : fnordstream.displays}));
+	fnordstream.ws_send({request : "set_displays", displays : fnordstream.displays});
 }
 
-function update_displays(fnordstream) {
+function update_displays_table(fnordstream) {
 	const displays = fnordstream.displays;
 	const target   = fnordstream.display_nodes.display_tbody;
 	const template = document.getElementById('display_tr-');
@@ -487,7 +492,7 @@ function update_displays(fnordstream) {
 			}
 			event.target.value = d.geo.w + "x" + d.geo.h;
 			draw_displays(fnordstream);
-			set_displays();
+			set_displays(fnordstream);
 		})
 		nodes.display_use.checked = d.use;
 		nodes.display_use.addEventListener('change', (event) => {
@@ -503,9 +508,16 @@ function update_displays(fnordstream) {
 	draw_displays(fnordstream);
 }
 
+function request_viewports() {
+	primary.ws_send({
+		request   : "suggest_viewports",
+		n_streams : stream_locations.length,
+		displays  : global.displays,
+		discard   : true
+	});
+}
+
 function displays_notification(fnordstream, msg) {
-	if (ws)
-		ws.send(JSON.stringify({request : "suggest_viewports", n_streams : stream_locations.length}));
 	v = msg.payload
 	if ((!v) || (v.length < 1)) {
 		const toast = new bootstrap.Toast(document.getElementById('displaydetect_failed'));
@@ -515,7 +527,9 @@ function displays_notification(fnordstream, msg) {
 		return;
 	}
 	fnordstream.displays = v;
-	update_displays(fnordstream);
+	global.update_displays();
+	update_displays_table(fnordstream);
+	request_viewports();
 }
 
 function viewports_notification(fnordstream, msg) {
@@ -900,9 +914,12 @@ function replace_nodes(nodelist, new_extension, node_table) {
 	return i;
 }
 
-function create_displays(conn_id, nodes, server) {
-	let template = document.getElementById('display_table-');
-	let parent   = template.parentNode;
+function create_displays(fnordstream) {
+	const server  = fnordstream.peer.split(":")[0];
+	const nodes   = fnordstream.display_nodes;
+	const conn_id = fnordstream.conn_id;
+	let template  = document.getElementById('display_table-');
+	let parent    = template.parentNode;
 	//parent.replaceChildren(template);
 
 	let n = template.cloneNode(true);
@@ -913,17 +930,25 @@ function create_displays(conn_id, nodes, server) {
 	nodes.display_table = n;
 	replace_nodes(children, conn_id, nodes);
 
-	nodes.refresh_displays.addEventListener('click', (event) => {
-		if(ws) {
-			ws.send(JSON.stringify({request:"detect_displays"}));
-		}
-	});
+	nodes.refresh_displays.addEventListener('click', (event) =>
+		fnordstream.ws_send({request:"detect_displays"}));
 	nodes.display_host.textContent = "@"+server+":";
 
 	const info_tt = new bootstrap.Tooltip(nodes.display_info);
 
 	parent.appendChild(n);
 	nodes.refresh_displays.dispatchEvent(new Event("click"));
+}
+
+function ws_send(requests) {
+	requests = Array.isArray(requests) ? requests : [requests];
+	if(this == window) {
+		Object.values(fnordstreams).map(v => v.ws_send ? v.ws_send(requests) : null);
+		return;
+	}
+	let buf = "";
+	requests.forEach(v => v ? buf+=JSON.stringify(v) : null);
+	this.websock.send(buf);
 }
 
 function add_connection(dst) {
@@ -938,20 +963,30 @@ function add_connection(dst) {
 		peer          : dst,
 		websock       : websock,
 		conn_id       : conn_id++,
-		display_nodes : {},
+
+		ws_send       : ws_send,
+
 		displays      : [],
 		viewports     : [],
+
+		display_nodes : {},
 		//stream_nodes  : {},
 	};
-	fnordstream.primary = fnordstream.conn_id == 0;
 	fnordstreams[dst]   = fnordstream;
-	ws = websock; // TBD
-	ws.send(
-		JSON.stringify({request : "global_status"})+
-		JSON.stringify({request : "get_profiles"})+    // TODO: only for primary connection
-		JSON.stringify({request : "probe_commands"})
-		);
-	create_displays(fnordstream.conn_id, fnordstream.display_nodes, fnordstream.peer.split(":")[0]);
+	fnordstream.primary = fnordstream.conn_id == 0;
+	if(fnordstream.primary)
+		primary = fnordstream;
+
+	// create displays list for host
+	create_displays(fnordstream);
+
+	// send initial requests
+	fnordstream.ws_send([
+		{request : "global_status"},
+		fnordstream.primary ? {request : "get_profiles"} : undefined,
+		{request : "probe_commands"}
+	]);
+
     document.getElementById('stream_urls').dispatchEvent(new Event("input"));
     console.log("websock opened",fnordstream.conn_id,dst);
   });
@@ -972,15 +1007,14 @@ function add_connection(dst) {
   });
 
   websock.addEventListener('close', (event) => {
-	  fnordstream.peer    = null;
-	  fnordstream.websock = null;
 	  // TODO: cleanup nodes
 	  delete(fnordstreams[dst]);
-	  ws = null; // TBD
+	  global.update_displays();
 	  console.log("websock closed", fnordstream.conn_id,dst);
   });
 }
 
+/*
 function ws_sendmulti(exempt, request, ctl, value) {
 	if(!ws) return;
 	let msg = "";
@@ -995,7 +1029,7 @@ function ws_sendmulti(exempt, request, ctl, value) {
 			});
 	}
 	ws.send(msg);
-}
+} */
 
 document.addEventListener("DOMContentLoaded", function() {
   add_connection(window.location.host);
