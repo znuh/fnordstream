@@ -7,9 +7,6 @@ let selected_profile = null;
 let stream_locations = [];
 let stream_nodes     = [];
 
-let displays         = [{"name":"Default","use":true,"geo":{"x":0,"y":0,"w":0,"h":0}}];
-let viewports        = [];
-
 let streams_active   = undefined;
 
 let tooltipList      = undefined;
@@ -366,9 +363,15 @@ function setup_stream_controls() {
 }
 
 function draw_viewports(fnordstream) {
+	/* redraw all if not specified */
+	if (!fnordstream) {
+		Object.values(fnordstreams).map(v => v.peer ? draw_viewports(v) : null);
+		return;
+	}
+	const viewports = fnordstream.viewports;
 	const lightmode = document.getElementById('lightSwitch').checked;
-	const cv      = fnordstream.display_nodes.viewports_cv;
-	const ctx     = cv.getContext("2d");
+	const cv        = fnordstream.display_nodes.viewports_cv;
+	const ctx       = cv.getContext("2d");
 	cv.style["mix-blend-mode"] = lightmode ? 'darken' : 'lighten';
 	ctx.textAlign = 'center';
 
@@ -398,6 +401,7 @@ function draw_displays(fnordstream) {
 		return;
 	}
 	const lightmode = document.getElementById('lightSwitch').checked;
+	const displays  = fnordstream.displays;
 
 	let w_ext=0, h_ext=0
 	for (let i=0;i<displays.length;i++) {
@@ -439,12 +443,13 @@ function draw_displays(fnordstream) {
 	draw_viewports(fnordstream);
 }
 
-function set_displays() {
+function set_displays(fnordstream) {
 	if(!ws) return;
-	ws.send(JSON.stringify({request : "set_displays", displays : displays}));
+	ws.send(JSON.stringify({request : "set_displays", displays : fnordstream.displays}));
 }
 
 function update_displays(fnordstream) {
+	const displays = fnordstream.displays;
 	const target   = fnordstream.display_nodes.display_tbody;
 	const template = document.getElementById('display_tr-');
 
@@ -509,7 +514,7 @@ function displays_notification(fnordstream, msg) {
 		//set_displays();
 		return;
 	}
-	displays = v;
+	fnordstream.displays = v;
 	update_displays(fnordstream);
 }
 
@@ -517,7 +522,7 @@ function viewports_notification(fnordstream, msg) {
 	v = msg.payload
 	if ((!v) || (v.length < 1))
 		v = [];
-	viewports = v;
+	fnordstream.viewports = v;
 	draw_viewports(fnordstream);
 }
 
@@ -934,6 +939,8 @@ function add_connection(dst) {
 		websock       : websock,
 		conn_id       : conn_id++,
 		display_nodes : {},
+		displays      : [],
+		viewports     : [],
 		//stream_nodes  : {},
 	};
 	fnordstream.primary = fnordstream.conn_id == 0;
