@@ -52,8 +52,8 @@ func detect_displays(hub *StreamHub, client *Client, request map[string]interfac
 	}()
 }
 
-func auto_layout(displays []Display, n_streams int) []Geometry {
-	viewports := []Geometry{}
+func auto_layout(displays []Display, n_streams int) []Viewport {
+	viewports := []Viewport{}
 
 	/* count usable displays (Use==true) */
 	n_displays := 0
@@ -91,7 +91,8 @@ func auto_layout(displays []Display, n_streams int) []Geometry {
 				free       := grid - used
 				center_ofs  = (free * w_step) / 2
 			}
-			vp := Geometry{
+			vp := Viewport{
+				Display_id : i,
 				W : w_step,
 				H : h_step,
 				X : x_ofs + col*w_step + center_ofs,
@@ -118,6 +119,7 @@ func suggest_viewports(hub *StreamHub, client *Client, request map[string]interf
 	 * if no displays are provided hub.displays are used */
 	displays := []Display{}
 	err := mapstructure.Decode(request["displays"], &displays)
+	fmt.Println("displays provided:",err==nil);
 	if (err != nil) || (len(displays)<1) {
 		displays = hub.displays
 	}
@@ -152,7 +154,7 @@ func start_streams(hub *StreamHub, client *Client, request map[string]interface 
 	}
 
 	/* check & adopt viewports */
-	viewports := []Geometry{}
+	viewports := []Viewport{}
 	mapstructure.Decode(request["viewports"], &viewports)
 	if len(viewports) < len(locations) {
 		viewports     = hub.viewports

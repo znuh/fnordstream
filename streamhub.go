@@ -47,7 +47,7 @@ type StreamHub struct {
 
 	/* streams stuff */
 	displays            []Display
-	viewports           []Geometry
+	viewports           []Viewport
 	stream_locations    []string
 	playback_options      map[string]bool
 

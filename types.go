@@ -12,8 +12,16 @@ type Geometry struct {
 	H   int   `json:"h" mapstructure:"h"`
 }
 
-func (geo *Geometry) String() string {
-        return fmt.Sprintf("%dx%d+%d+%d",geo.W,geo.H,geo.X,geo.Y)
+type Viewport struct {
+	X   int   `json:"x" mapstructure:"x"`
+	Y   int   `json:"y" mapstructure:"y"`
+	W   int   `json:"w" mapstructure:"w"`
+	H   int   `json:"h" mapstructure:"h"`
+	Display_id  int  `json:"display_id" mapstructure:"display_id"`
+}
+
+func (vp *Viewport) String() string {
+        return fmt.Sprintf("%dx%d+%d+%d",vp.W,vp.H,vp.X,vp.Y)
 }
 
 type PlayerConfig struct {
