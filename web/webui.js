@@ -2,15 +2,13 @@
 let stream_profiles  = {};
 let selected_profile = null;
 
-//let stream_nodes     = [];
-//let streams_active   = undefined;
-
 let tooltipList      = undefined;
 
 let conn_id          = 0;           // connection id counter - increments on connection open
 let fnordstreams     = {};          // fnordstreams instances (connections to servers, etc.)
 let primary          = undefined;   // primary fnordstream instance
 
+// TODO: global playing status
 let global           = {            // assembled data from individual fnordstream instances
 	streams_active   : undefined,
 	stream_locations : [],
@@ -117,6 +115,7 @@ function register_handlers() {
 		const options = gather_options();
 		streams_playing(true);
 		Object.values(fnordstreams).map(v => {
+			if((!v.viewports)||(v.viewports.length<1)) return;
 			v.ws_send({                         // send start to all fnordstream instances
 				request   : "start_streams",
 				streams   : v.stream_locations,
@@ -234,12 +233,14 @@ function register_handlers() {
 	})
 }
 
-function setup_stream_controls() {
+// TBD
+function setup_stream_controls(fnordstream) {
 	let template = document.getElementById('stream-');
 	let parent   = template.parentNode;
 	parent.replaceChildren(template);
 
-	stream_nodes = [];
+	const stream_locations = fnordstream.stream_locations;
+	let stream_nodes = [];
 
 	for (let i=0;i<stream_locations.length;i++) {
 		const url = stream_locations[i];
@@ -360,6 +361,7 @@ function setup_stream_controls() {
 			playing          : playing,
 			starting         : starting,
 		}
+		fnordstream.stream_nodes = stream_nodes;
 
 		parent.appendChild(n);
 	}
@@ -586,7 +588,7 @@ function mpv_property_changed(fnordstream, property, stream_id) {
 		//return;
 	}
 
-	node = stream_nodes[stream_id][target];
+	node = fnordstream.stream_nodes[stream_id][target];
 	if (!node) {
 		//console.log("no target node", stream_id, target, property);
 		return;
@@ -612,7 +614,7 @@ function player_event(fnordstream, msg) {
 		return;
 
 	stream_id = parseInt(msg.stream_id);
-	if (isNaN(stream_id) || (stream_id >= stream_nodes.length) || (stream_id < 0))
+	if (isNaN(stream_id) || (stream_id >= fnordstream.stream_nodes.length) || (stream_id < 0))
 		return;
 
 	if (event.event == "property-change") {
@@ -630,10 +632,11 @@ function player_status(fnordstream, msg) {
 		return;
 
 	stream_id = parseInt(msg.stream_id);
-	if (isNaN(stream_id) || (stream_id >= stream_nodes.length) || (stream_id < 0))
+	if (isNaN(stream_id) || (stream_id >= fnordstream.stream_nodes.length) || (stream_id < 0))
 		return;
 
 	const status = payload.status;
+	const stream_nodes = fnordstream.stream_nodes;
 
 	stream_nodes[stream_id].volume.disabled              = status != "playing";
 	stream_nodes[stream_id].buffer.disabled              = status != "playing";
@@ -679,14 +682,14 @@ function global_status(fnordstream, msg) {
 	if (!status.playing)
 		return;
 
-	stream_locations = [];
+	fnordstream.stream_locations = [];
 
 	const streams = status.streams;
 
 	for (let i=0;i<streams.length;i++)
-		stream_locations[i] = streams[i].location;
+		fnordstream.stream_locations[i] = streams[i].location;
 	/* create stream nodes */
-	setup_stream_controls();
+	setup_stream_controls(fnordstream);
 
 	/* set status and properties for all streams */
 	for (let i=0;i<streams.length;i++) {
@@ -720,6 +723,7 @@ function mklink(ref) {
 	return refs[ref] ? ('<a href="'+refs[ref]+'">'+ref+'</a>') : ref;
 }
 
+// TBD
 function populate_cmds_table(cmds) {
 	let template = document.getElementById('cmd-');
 	let parent   = template.parentNode;
@@ -761,8 +765,10 @@ function populate_cmds_table(cmds) {
 	}
 }
 
+// TBD
 let cmd_modal = undefined;
 
+// TBD
 function commands_probed(fnordstream, msg) {
 
 	const results = msg.payload;
