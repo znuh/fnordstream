@@ -141,7 +141,7 @@ function register_handlers() {
 		let last = vals.pop();
 		if ((last) && (last.length > 0))
 			vals.push(last);
-		const viewports_update = vals.length != stream_locations.length;
+		const viewports_update = vals.length != global.stream_locations.length;
 		global.stream_locations = vals;
 		streams_start.disabled = !(global.stream_locations.length > 0);
 		// profile_viewports_en.checked?
@@ -514,7 +514,7 @@ function update_displays_table(fnordstream) {
 function request_viewports() {
 	primary.ws_send({
 		request   : "suggest_viewports",
-		n_streams : stream_locations.length,
+		n_streams : global.stream_locations.length,
 		displays  : global.displays,
 		discard   : true
 	});
@@ -639,8 +639,8 @@ function player_status(fnordstream, msg) {
 }
 
 function streams_playing(active) {
-	if (active == streams_active) return;
-	streams_active = active;
+	if (active == global.streams_active) return;
+	global.streams_active = active;
 
 	document.getElementById('setup-tab').disabled   = false;
 	document.getElementById('control-tab').disabled = false;
