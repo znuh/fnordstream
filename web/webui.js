@@ -2,18 +2,20 @@
 let stream_profiles  = {};
 let selected_profile = null;
 
-let stream_locations = [];
-let stream_nodes     = [];
-
-let streams_active   = undefined;
+//let stream_nodes     = [];
+//let streams_active   = undefined;
 
 let tooltipList      = undefined;
 
 let conn_id          = 0;           // connection id counter - increments on connection open
 let fnordstreams     = {};          // fnordstreams instances (connections to servers, etc.)
 let primary          = undefined;   // primary fnordstream instance
+
 let global           = {            // assembled data from individual fnordstream instances
-	displays  : [],
+	streams_active   : undefined,
+	stream_locations : [],
+	displays         : [],
+	viewports        : [],
 
 	update_displays : function() {
 		this.displays = Object.values(fnordstreams).flatMap(v => v.displays);
@@ -70,12 +72,10 @@ function register_handlers() {
 	const profile_viewports_en = document.getElementById('profile_viewports_en');
 
 	profile_delete.addEventListener('click', (event) => {
-	  if(ws)
-		ws.send(JSON.stringify(
-			{
-				request:"profile_delete",
-				profile_name  : profile_name.value,
-			}));
+		primary.ws_send({
+			request       : "profile_delete",
+			profile_name  : profile_name.value,
+		});
 		delete stream_profiles[profile_name.value];
 		selected_profile = undefined;
 		update_stream_profiles();
@@ -83,18 +83,16 @@ function register_handlers() {
 
 	/* save profile */
 	profile_save.addEventListener('click', (event) => {
-	  if(!ws) return;
-	    let profile = {
-			stream_locations : stream_locations,
+		let profile = {
+			stream_locations : global.stream_locations,
 		}
 		if (profile_viewports_en.checked)
-			profile.viewports = viewports;
-		ws.send(JSON.stringify(
-			{
-				request       : "profile_save",
-				profile_name  : profile_name.value,
-				profile       : profile,
-			}));
+			profile.viewports = global.viewports;
+		primary.ws_send({
+			request       : "profile_save",
+			profile_name  : profile_name.value,
+			profile       : profile,
+		});
 		stream_profiles[profile_name.value] = profile;
 		selected_profile = profile_name.value;
 		update_stream_profiles();
@@ -107,7 +105,7 @@ function register_handlers() {
 	// save/use viewports from profile?
 	profile_viewports_en.addEventListener('change', (event) => {
 		if (!event.currentTarget.checked)
-			stream_locations = []; // trigger viewports update in stream_urls.input
+			global.stream_locations = []; // trigger viewports update in stream_urls.input
 		stream_urls.dispatchEvent(new Event("input"));
 	})
 
@@ -116,16 +114,17 @@ function register_handlers() {
 	/* start streams */
 	const streams_start = document.getElementById('streams_start');
 	streams_start.addEventListener('click', (event) => {
-	  if(ws)
-		ws.send(JSON.stringify(
-			{
-				request   : "start_streams",
-				streams   : stream_locations,
-				viewports : viewports,
-				options   : gather_options(),
-			}));
+		const options = gather_options();
 		streams_playing(true);
-	})
+		Object.values(fnordstreams).map(v =>
+			v.ws_send({                         // send start to all fnordstream instances
+				request   : "start_streams",
+				streams   : v.stream_locations,
+				viewports : v.viewports,
+				options   : options,
+			})
+		);
+	});
 
 	/* stream URLs changed */
 	const stream_urls = document.getElementById('stream_urls');
@@ -143,13 +142,13 @@ function register_handlers() {
 		if ((last) && (last.length > 0))
 			vals.push(last);
 		const viewports_update = vals.length != stream_locations.length;
-		stream_locations = vals;
-		streams_start.disabled = !(stream_locations.length > 0);
+		global.stream_locations = vals;
+		streams_start.disabled = !(global.stream_locations.length > 0);
 		// profile_viewports_en.checked?
 		if (profile_viewports_en.checked && selected_profile && (stream_profiles[selected_profile].viewports) &&
 			stream_profiles[selected_profile].viewports.length >= stream_profiles[selected_profile].stream_locations.length) {
-			viewports = stream_profiles[selected_profile].viewports;
-			draw_viewports();
+			global.viewports = stream_profiles[selected_profile].viewports;
+			assign_viewports();
 		} else if (viewports_update)
 			request_viewports();
 		//console.log(stream_locations);
@@ -234,7 +233,6 @@ function register_handlers() {
 	  else
 		tooltipList.map(tt => tt ? tt.disable() : null);
 	})
-
 }
 
 function setup_stream_controls() {
@@ -368,6 +366,11 @@ function setup_stream_controls() {
 	}
 }
 
+function assign_viewports() {
+	// TODO: assign global.viewports to fnordstream instances
+	draw_viewports();
+}
+
 function draw_viewports(fnordstream) {
 	/* redraw all if not specified */
 	if (!fnordstream) {
@@ -499,7 +502,7 @@ function update_displays_table(fnordstream) {
 			let disp_id = parseInt(event.target.id.match(/(\d+)$/)[0]);
 			let d = displays[disp_id];
 			d.use = event.target.checked;
-			set_displays();
+			set_displays(fnordstream);
 		})
 
 		target.appendChild(n);
@@ -533,12 +536,12 @@ function displays_notification(fnordstream, msg) {
 }
 
 function viewports_notification(fnordstream, msg) {
+	if(!fnordstream.primary) return;
 	v = msg.payload
 	if ((!v) || (v.length < 1))
 		v = [];
-	// TODO: assign viewports to fnordstream instances
-	fnordstream.viewports = v;
-	draw_viewports(fnordstream);
+	global.viewports = v;
+	assign_viewports();
 }
 
 function mpv_property_changed(fnordstream, property, stream_id) {
