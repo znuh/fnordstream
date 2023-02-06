@@ -913,11 +913,10 @@ function create_displays(fnordstream) {
 function ws_send(requests) {
 	requests = Array.isArray(requests) ? requests : [requests];
 	if(this == window) {
-		Object.values(fnordstreams).forEach(v => v.ws_send ? v.ws_send(requests) : null);
+		Object.values(fnordstreams).forEach(v => v.ws_send(requests));
 		return;
 	}
-	let buf = "";
-	requests.forEach(v => v ? buf+=JSON.stringify(v) : null);
+	const buf = requests.reduce((res,v) => v ? res+JSON.stringify(v) : res, "");
 	this.websock.send(buf);
 }
 
