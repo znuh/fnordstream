@@ -35,6 +35,7 @@ function update_stream_profiles(data) {
 	profile_select.textContent="";
 	append_option(profile_select,-1,"New...", selected_profile == null);
 	let idx=0;
+	// TODO
 	for (var key in stream_profiles) {
 		append_option(profile_select, idx, key, selected_profile == key);
 		idx++;
@@ -51,6 +52,7 @@ function gather_options() {
 		"restart_user_quit"
 	];
 	let res = {};
+	// TODO: forEach/reduce?
 	for (let i=0;i<gather_list.length;i++) {
 		const id = gather_list[i];
 		const val = document.getElementById(id).checked;
@@ -233,15 +235,13 @@ function register_handlers() {
 	})
 }
 
-function setup_stream_controls(fnordstream) {
+function setup_stream_controls(fnordstream, streams) {
 	let template = document.getElementById('stream-');
 	let parent   = template.parentNode;
 	parent.replaceChildren(template);
 
-	const stream_locations = fnordstream.stream_locations;
-	fnordstream.stream_nodes = [];
-
-	stream_locations.forEach( (url,i) => {
+	fnordstream.stream_nodes = streams.map( (stream,i) => {
+		const url = stream.location;
 		let n = template.cloneNode(true);
 		let children = n.childNodes;
 		n.id += i;
@@ -311,8 +311,8 @@ function setup_stream_controls(fnordstream) {
 				value       : "1"
 			});
 		});
-		fnordstream.stream_nodes[i] = nodes;
 		parent.appendChild(n);
+		return nodes;
 	}); // foreach stream
 }
 
@@ -325,6 +325,7 @@ function assign_viewports() {
 	const viewports        = global.viewports;
 	const stream_locations = global.stream_locations;
 	// assign global.viewports and stream_location to fnordstream instances
+	// TODO: map?
 	viewports.forEach( (vp, idx) => {
 		const stream_location = stream_locations[idx];
 		const fnordstream = primary;     // TODO
@@ -351,9 +352,7 @@ function draw_viewports(fnordstream) {
 	ctx.fillStyle = lightmode ? '#ffffff' : '#000000';
 	ctx.fillRect(0, 0, cv.width, cv.height);
 
-	for (let i=0;i<viewports.length;i++) {
-		const geo = viewports[i];
-
+	viewports.forEach( (geo,i) => {
 		//ctx.fillStyle='#aaaaaa';
 		//ctx.fillRect(3.5+geo.x/8, 0.5+geo.y/8, geo.w/8, geo.h/8);
 		ctx.strokeStyle = lightmode ? "#000000" : "#ffffff";
@@ -363,7 +362,7 @@ function draw_viewports(fnordstream) {
 		ctx.fillStyle = lightmode ? "#000000" : "#ffffff";
 		ctx.font      = font_h+'px sans-serif';
 		ctx.fillText(i, 3.5+geo.x/8 + geo.w/16, (geo.y/8)+(geo.h/16)+(font_h/2)-2, geo.w/8);
-	}
+	});
 }
 
 function draw_displays(fnordstream) {
@@ -376,11 +375,12 @@ function draw_displays(fnordstream) {
 	const displays  = fnordstream.displays;
 
 	let w_ext=0, h_ext=0
-	for (let i=0;i<displays.length;i++) {
-		const geo = displays[i].geo;
+	// TODO: reduce?
+	displays.forEach( d => {
+		const geo = d.geo;
 		w_ext = Math.max(w_ext, geo.x + geo.w);
 		h_ext = Math.max(h_ext, geo.y + geo.h);
-	}
+	});
 
 	//console.log("extents:",w_ext,h_ext);
 	w_ext/=8; h_ext/=8;
@@ -398,15 +398,15 @@ function draw_displays(fnordstream) {
 	ctx.fillStyle = lightmode ? '#ffffff' : '#000000';
 	ctx.fillRect(0, 0, cv.width, cv.height);
 
-	for (let i=0;i<displays.length;i++) {
-		const geo = displays[i].geo;
+	displays.forEach( (d,i) => {
+		const geo = d.geo;
 		ctx.fillStyle = lightmode ? '#dddddd' : '#666666';
 		ctx.fillRect(3.5+geo.x/8, 0.5+geo.y/8, geo.w/8, geo.h/8);
 		ctx.strokeStyle = lightmode ? "#000000" : "#ffffff";
 		ctx.strokeRect(3.5+geo.x/8, 0.5+geo.y/8, geo.w/8, geo.h/8);
 		ctx.fillStyle = lightmode ? "#000000" : "#ffffff";
 		ctx.fillText(displays[i].name, 3.5+geo.x/8 + geo.w/16, (geo.y/8)+(geo.h/8)+font_h-2, geo.w/8);
-	}
+	});
 
 	const cv2 = fnordstream.display_nodes.viewports_cv;
 	cv2.width  = w_ext+8;
@@ -419,6 +419,7 @@ function set_displays(fnordstream) {
 	fnordstream.ws_send({request : "set_displays", displays : fnordstream.displays});
 }
 
+// TODO: verify nodes handling
 function update_displays_table(fnordstream) {
 	const displays = fnordstream.displays;
 	const target   = fnordstream.display_nodes.display_tbody;
@@ -426,8 +427,8 @@ function update_displays_table(fnordstream) {
 
 	target.replaceChildren();
 
-	for (let i=0;i<displays.length;i++) {
-		const d = displays[i];
+	displays.forEach( (d,i) => {
+		const geo = d.geo;
 		let n = template.cloneNode(true);
 		let children = n.childNodes;
 		n.id += i;
@@ -469,7 +470,7 @@ function update_displays_table(fnordstream) {
 		})
 
 		target.appendChild(n);
-	} /* foreach display */
+	}); /* foreach display */
 
 	draw_displays(fnordstream);
 }
@@ -619,6 +620,7 @@ function streams_playing(active) {
 	document.getElementById('control-tab').disabled = !active;
 }
 
+// TODO: global playing
 function global_status(fnordstream, msg) {
 	const status = msg.payload;
 
@@ -632,21 +634,16 @@ function global_status(fnordstream, msg) {
 	if (!status.playing)
 		return;
 
-	fnordstream.stream_locations = [];
-
 	const streams = status.streams;
 
-	for (let i=0;i<streams.length;i++)
-		fnordstream.stream_locations[i] = streams[i].location;
 	/* create stream nodes */
-	setup_stream_controls(fnordstream);
+	setup_stream_controls(fnordstream, streams);
 
 	/* set status and properties for all streams */
-	for (let i=0;i<streams.length;i++) {
-		const stream = streams[i];
+	streams.forEach( (stream,i) => {
 		player_status(fnordstream, {"stream_id":i, "payload":{"status":stream.player_status}});
 		if (!stream.properties)
-			continue;
+			return;
 		for (const [key, value] of Object.entries(stream.properties)) {
 			//console.log(key,value);
 			player_event(fnordstream, {"stream_id":i, "payload":{
@@ -655,7 +652,7 @@ function global_status(fnordstream, msg) {
 				"data"  : value,
 			}});
 		}
-	}
+	});
 }
 
 const required_commands = {
