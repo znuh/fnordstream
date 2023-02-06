@@ -114,7 +114,7 @@ function register_handlers() {
 	streams_start.addEventListener('click', (event) => {
 		const options = gather_options();
 		streams_playing(true);
-		Object.values(fnordstreams).map(v => {
+		Object.values(fnordstreams).forEach(v => {
 			if((!v.viewports)||(v.viewports.length<1)) return;
 			v.ws_send({                         // send start to all fnordstream instances
 				request   : "start_streams",
@@ -227,9 +227,9 @@ function register_handlers() {
 			tooltipTriggerEl.id != "display-resolution-info" ? new bootstrap.Tooltip(tooltipTriggerEl) : null);
 	  }
 	  if (event.currentTarget.checked)
-		tooltipList.map(tt => tt ? tt.enable() : null);
+		tooltipList.forEach(tt => tt ? tt.enable() : null);
 	  else
-		tooltipList.map(tt => tt ? tt.disable() : null);
+		tooltipList.forEach(tt => tt ? tt.disable() : null);
 	})
 }
 
@@ -318,7 +318,7 @@ function setup_stream_controls(fnordstream) {
 
 function assign_viewports() {
 	// clear assigned viewports and streams first
-	Object.values(fnordstreams).map(v => {
+	Object.values(fnordstreams).forEach(v => {
 		v.viewports = [];
 		v.stream_locations = [];
 	});
@@ -337,7 +337,7 @@ function assign_viewports() {
 function draw_viewports(fnordstream) {
 	/* redraw all if not specified */
 	if (!fnordstream) {
-		Object.values(fnordstreams).map(v => v.peer ? draw_viewports(v) : null);
+		Object.values(fnordstreams).forEach(v => v.peer ? draw_viewports(v) : null);
 		return;
 	}
 	const viewports = fnordstream.viewports;
@@ -369,7 +369,7 @@ function draw_viewports(fnordstream) {
 function draw_displays(fnordstream) {
 	/* redraw all if not specified */
 	if (!fnordstream) {
-		Object.values(fnordstreams).map(v => v.peer ? draw_displays(v) : null);
+		Object.values(fnordstreams).forEach(v => v.peer ? draw_displays(v) : null);
 		return;
 	}
 	const lightmode = document.getElementById('lightSwitch').checked;
@@ -915,7 +915,7 @@ function create_displays(fnordstream) {
 function ws_send(requests) {
 	requests = Array.isArray(requests) ? requests : [requests];
 	if(this == window) {
-		Object.values(fnordstreams).map(v => v.ws_send ? v.ws_send(requests) : null);
+		Object.values(fnordstreams).forEach(v => v.ws_send ? v.ws_send(requests) : null);
 		return;
 	}
 	let buf = "";
