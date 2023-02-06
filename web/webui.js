@@ -35,7 +35,6 @@ function update_stream_profiles(data) {
 	profile_select.textContent="";
 	append_option(profile_select,-1,"New...", selected_profile == null);
 	let idx=0;
-	// TODO
 	for (var key in stream_profiles) {
 		append_option(profile_select, idx, key, selected_profile == key);
 		idx++;
@@ -51,14 +50,10 @@ function gather_options() {
 		"restart_error",
 		"restart_user_quit"
 	];
-	let res = {};
-	// TODO: forEach/reduce?
-	for (let i=0;i<gather_list.length;i++) {
-		const id = gather_list[i];
-		const val = document.getElementById(id).checked;
-		res[id]=val;
-	}
-	return res;
+	return gather_list.reduce( (res,id) => {
+		res[id] = document.getElementById(id).checked;
+		return res;
+	}, {});
 }
 
 function register_handlers() {
@@ -419,7 +414,6 @@ function set_displays(fnordstream) {
 	fnordstream.ws_send({request : "set_displays", displays : fnordstream.displays});
 }
 
-// TODO: verify nodes handling
 function update_displays_table(fnordstream) {
 	const displays = fnordstream.displays;
 	const target   = fnordstream.display_nodes.display_tbody;
