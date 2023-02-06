@@ -964,18 +964,15 @@ function add_connection(dst) {
   });
 
   websock.addEventListener('message', (evt) => {
-	const msgs = evt.data.split('\n').map(s => s.length > 1 ? JSON.parse(s) : undefined);
-	for (msg of msgs) {
-		if (msg == undefined) continue;
-		//console.log(msg);
-		if (msg.notification && ws_handlers[msg.notification]) {
+	  evt.data.split('\n').forEach( s => {
+		  if (s.length < 2) return;
+		  const msg = JSON.parse(s);
+		  //console.log(msg);
+		  if (msg.notification && ws_handlers[msg.notification])
 			ws_handlers[msg.notification](fnordstream, msg);
-		}
-		else {
+		else
 			console.log(msg);
-		}
-	}
-    //console.log(fnordstream);
+	  }); // forEach
   });
 
   websock.addEventListener('close', (event) => {
