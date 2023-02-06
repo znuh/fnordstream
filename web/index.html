@@ -196,42 +196,42 @@
         <tbody id="streams-table">
           <tr id="stream-" hidden> <!-- hidden -->
             <!-- template -->
-            <th scope="row" id="stream-idx-">0</th>
+            <th scope="row" id="stream_idx-">0</th>
             <td> <!-- id="stream-ctl-"> -->
 			  <span>
-				  <span id="stream-playing-">
+				  <span id="stream_playing-">
 					<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 100 100">
 						<circle cx="50" cy="50" r="30" fill="#00c000"></circle>
 					</svg>
 				  </span>
-				  <span id="stream-stopped-">
+				  <span id="stream_stopped-">
 					  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 100 100">
 						<circle cx="50" cy="50" r="30" fill="#c00000"></circle>
 					</svg>
 				  </span>
-					  <div id="stream-starting-" class="spinner-border spinner-border-sm" role="status">
+					  <div id="stream_starting-" class="spinner-border spinner-border-sm" role="status">
 						<span class="visually-hidden">starting...</span>
 					  </div>
-				  <span id="stream-title-"></span>
+				  <span id="stream_title-"></span>
 			  </span>
               <div class="container">
                 <div class="row">
                   <div class="col">
-                    <label for="stream-volume-" class="form-label"><i class="bi bi-volume-up-fill"></i></label> <input type="range" class="form-range" id="stream-volume-">
+                    <label for="stream_volume-" class="form-label"><i class="bi bi-volume-up-fill"></i></label> <input type="range" class="form-range" id="stream_volume-">
                   </div>
                   <div class="col">
-                    <span class="mb-1" id="stream-buffer-"></span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-                    <span class="mb-1" id="stream-vbr-"></span>
+                    <span class="mb-1" id="stream_buffer-"></span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                    <span class="mb-1" id="stream_vbr-"></span>
                     <div class="btn-group me-2" role="group" aria-label="group">
-                      <input type="checkbox" class="btn-check" id="stream-muting-" autocomplete="off"> 
-                      <label class="btn btn-outline-secondary" for="stream-muting-" data-bs-toggle="tooltip" data-bs-title="mute/unmute">
+                      <input type="checkbox" class="btn-check" id="stream_muting-" autocomplete="off">
+                      <label class="btn btn-outline-secondary" for="stream_muting-" data-bs-toggle="tooltip" data-bs-title="mute/unmute">
 						<i class="bi bi-volume-mute-fill"></i>
 					  </label> 
-					  <button type="button" class="btn btn-secondary" id="stream-exclusive-unmute-" data-bs-toggle="tooltip" data-bs-title="unmute this stream, mute all others"><i class="bi bi-volume-up-fill"></i>!</button> 
-					  <button type="button" class="btn btn-secondary" id="stream-stop-"><i class="bi bi-stop-fill" data-bs-toggle="tooltip" data-bs-title="stop stream"></i></button>
-                      <button type="button" class="btn btn-secondary" id="stream-play-"><i class="bi bi-play-fill" data-bs-toggle="tooltip" data-bs-title="start stream"></i></button>
-                      <button type="button" class="btn btn-secondary" id="stream-restart-"><i class="bi bi-arrow-clockwise" data-bs-toggle="tooltip" data-bs-title="restart stream"></i></button>
-                      <button type="button" class="btn btn-secondary" id="stream-ffwd-"><i class="bi bi-fast-forward-fill" data-bs-toggle="tooltip" data-bs-title="seek 1s forward"></i></button>
+					  <button type="button" class="btn btn-secondary" id="stream_exclusive_unmute-" data-bs-toggle="tooltip" data-bs-title="unmute this stream, mute all others"><i class="bi bi-volume-up-fill"></i>!</button>
+					  <button type="button" class="btn btn-secondary" id="stream_stop-"><i class="bi bi-stop-fill" data-bs-toggle="tooltip" data-bs-title="stop stream"></i></button>
+                      <button type="button" class="btn btn-secondary" id="stream_play-"><i class="bi bi-play-fill" data-bs-toggle="tooltip" data-bs-title="start stream"></i></button>
+                      <button type="button" class="btn btn-secondary" id="stream_restart-"><i class="bi bi-arrow-clockwise" data-bs-toggle="tooltip" data-bs-title="restart stream"></i></button>
+                      <button type="button" class="btn btn-secondary" id="stream_ffwd-"><i class="bi bi-fast-forward-fill" data-bs-toggle="tooltip" data-bs-title="seek 1s forward"></i></button>
                     </div>
                   </div>
                 </div>
@@ -243,11 +243,11 @@
       <!-- global control -->
      <div class="d-flex justify-content-end mb-3" id="streams-ctl">Global control: &nbsp;
       <div class="btn-group me-2" role="group" aria-label="group">
-        <button type="button" class="btn btn-secondary" id="streams-mute-all"><i class="bi bi-volume-mute-fill" data-bs-toggle="tooltip" data-bs-title="mute all"></i>!</button>
-        <button type="button" class="btn btn-secondary" id="streams-stop-all"><i class="bi bi-stop-fill" data-bs-toggle="tooltip" data-bs-title="stop all"></i>!</button>
-        <button type="button" class="btn btn-secondary" id="streams-play-all"><i class="bi bi-play-fill" data-bs-toggle="tooltip" data-bs-title="start all"></i>!</button>
-        <button type="button" class="btn btn-secondary" id="streams-ffwd-all"><i class="bi bi-fast-forward-fill" data-bs-toggle="tooltip" data-bs-title="seek 1s forward"></i>!</button>
-        <button type="button" class="btn btn-secondary" id="streams-restart-all"><i class="bi bi-arrow-clockwise" data-bs-toggle="tooltip" data-bs-title="restart all"></i>!</button>
+        <button type="button" class="btn btn-secondary" id="streams_mute_all"><i class="bi bi-volume-mute-fill" data-bs-toggle="tooltip" data-bs-title="mute all"></i>!</button>
+        <button type="button" class="btn btn-secondary" id="streams_stop_all"><i class="bi bi-stop-fill" data-bs-toggle="tooltip" data-bs-title="stop all"></i>!</button>
+        <button type="button" class="btn btn-secondary" id="streams_play_all"><i class="bi bi-play-fill" data-bs-toggle="tooltip" data-bs-title="start all"></i>!</button>
+        <button type="button" class="btn btn-secondary" id="streams_ffwd_all"><i class="bi bi-fast-forward-fill" data-bs-toggle="tooltip" data-bs-title="seek 1s forward"></i>!</button>
+        <button type="button" class="btn btn-secondary" id="streams_restart_all"><i class="bi bi-arrow-clockwise" data-bs-toggle="tooltip" data-bs-title="restart all"></i>!</button>
       </div>
       </div>
       <!-- d-inline-flex -->

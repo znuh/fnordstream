@@ -187,27 +187,27 @@ function register_handlers() {
 
 	/* ********* control pane *************** */
 
-	const streams_mute_all    = document.getElementById('streams-mute-all');
+	const streams_mute_all    = document.getElementById('streams_mute_all');
 	streams_mute_all.addEventListener('click', (event) => {
 		ws_sendmulti(undefined, "stream_ctl", "mute", "yes");
 	})
 
-	const streams_stop_all    = document.getElementById('streams-stop-all');
+	const streams_stop_all    = document.getElementById('streams_stop_all');
 	streams_stop_all.addEventListener('click', (event) => {
 		ws_sendmulti(undefined, "stream_ctl", "play", "no");
 	})
 
-	const streams_play_all    = document.getElementById('streams-play-all');
+	const streams_play_all    = document.getElementById('streams_play_all');
 	streams_play_all.addEventListener('click', (event) => {
 		ws_sendmulti(undefined, "stream_ctl", "play", "yes");
 	})
 
-	const streams_ffwd_all    = document.getElementById('streams-ffwd-all');
+	const streams_ffwd_all    = document.getElementById('streams_ffwd_all');
 	streams_ffwd_all.addEventListener('click', (event) => {
 		ws_sendmulti(undefined, "stream_ctl", "seek", "1");
 	})
 
-	const streams_restart_all = document.getElementById('streams-restart-all');
+	const streams_restart_all = document.getElementById('streams_restart_all');
 	streams_restart_all.addEventListener('click', (event) => {
 		ws_sendmulti(undefined, "stream_ctl", "play", "restart");
 	})
@@ -233,138 +233,87 @@ function register_handlers() {
 	})
 }
 
-// TBD
 function setup_stream_controls(fnordstream) {
 	let template = document.getElementById('stream-');
 	let parent   = template.parentNode;
 	parent.replaceChildren(template);
 
 	const stream_locations = fnordstream.stream_locations;
-	let stream_nodes = [];
+	fnordstream.stream_nodes = [];
 
-	for (let i=0;i<stream_locations.length;i++) {
-		const url = stream_locations[i];
+	stream_locations.forEach( (url,i) => {
 		let n = template.cloneNode(true);
 		let children = n.childNodes;
 		n.id += i;
 		n.hidden = false;
 
-		let idx = replace_child(children,"stream-idx-",i);
-		idx.textContent = i;
+		let nodes = {};
+		adapt_nodes(children, i, nodes);
 
-		let title = replace_child(children,"stream-title-",i);
-		title.textContent = url;
-
-		let vol = replace_child(children,"stream-volume-",i);
-		vol.addEventListener('input', (event) => {
+		nodes.stream_idx.textContent   = i;
+		nodes.stream_title.textContent = url;
+		nodes.stream_volume.addEventListener('input', (event) => {
 			const val = event.target.value;
-			ws.send(JSON.stringify(
-			{
+			fnordstream.ws_send({
 				request     : "stream_ctl",
 				stream_id   : i,
 				ctl         : "volume",
 				value       : val
-			}));
-		})
-
-		let buffer = replace_child(children,"stream-buffer-",i);
-		let vbr    = replace_child(children,"stream-vbr-",i);
-
-		let muting = replace_child(children,"stream-muting-",i);
-		muting.addEventListener('change', (event) => {
+			});
+		});
+		nodes.stream_muting.addEventListener('change', (event) => {
 			const val = event.target.checked ? "no" : "yes";
-			ws.send(JSON.stringify(
-			{
+			fnordstream.ws_send({
 				request     : "stream_ctl",
 				stream_id   : i,
 				ctl         : "mute",
 				value       : val
-			}));
-		})
-
-		let exc_unmute = replace_child(children,"stream-exclusive-unmute-",i);
-		exc_unmute.addEventListener('click', (event) => {
-			ws_sendmulti(i, "stream_ctl", "mute", "yes");
-			ws.send(JSON.stringify(
-			{
+			});
+		});
+		nodes.stream_exclusive_unmute.addEventListener('click', (event) => {
+			ws_sendmulti(i, "stream_ctl", "mute", "yes");  // TODO
+			fnordstream.ws_send({
 				request     : "stream_ctl",
 				stream_id   : i,
 				ctl         : "mute",
 				value       : "no",
-			}));
-		})
-
-		let stop = replace_child(children,"stream-stop-",i);
-		stop.addEventListener('click', (event) => {
-			if(ws)
-				ws.send(JSON.stringify(
-				{
-					request     : "stream_ctl",
-					stream_id   : i,
-					ctl         : "play",
-					value       : "no"
-				}));
-		})
-
-		let play = replace_child(children,"stream-play-",i);
-		play.addEventListener('click', (event) => {
-			if(ws)
-				ws.send(JSON.stringify(
-				{
-					request     : "stream_ctl",
-					stream_id   : i,
-					ctl         : "play",
-					value       : "yes"
-				}));
-		})
-
-		let restart = replace_child(children,"stream-restart-",i,true);
-		restart.addEventListener('click', (event) => {
-			if(ws)
-				ws.send(JSON.stringify(
-				{
-					request     : "stream_ctl",
-					stream_id   : i,
-					ctl         : "play",
-					value       : "restart"
-				}));
-		})
-
-		let ffwd = replace_child(children,"stream-ffwd-",i);
-		ffwd.addEventListener('click', (event) => {
-			ws.send(JSON.stringify(
-			{
+			});
+		});
+		nodes.stream_stop.addEventListener('click', (event) => {
+			fnordstream.ws_send({
+				request     : "stream_ctl",
+				stream_id   : i,
+				ctl         : "play",
+				value       : "no"
+			});
+		});
+		nodes.stream_play.addEventListener('click', (event) => {
+			fnordstream.ws_send({
+				request     : "stream_ctl",
+				stream_id   : i,
+				ctl         : "play",
+				value       : "yes"
+			});
+		});
+		nodes.stream_restart.addEventListener('click', (event) => {
+			fnordstream.ws_send({
+				request     : "stream_ctl",
+				stream_id   : i,
+				ctl         : "play",
+				value       : "restart"
+			});
+		});
+		nodes.stream_ffwd.addEventListener('click', (event) => {
+			fnordstream.ws_send({
 				request     : "stream_ctl",
 				stream_id   : i,
 				ctl         : "seek",
 				value       : "1"
-			}));
-		})
-
-		let stopped  = replace_child(children,"stream-stopped-",i);
-		let playing  = replace_child(children,"stream-playing-",i);
-		let starting = replace_child(children,"stream-starting-",i);
-
-		stream_nodes[i] = {
-			idx              : idx,
-			title            : title,
-			volume           : vol,
-			buffer           : buffer,
-			vbr              : vbr,
-			muting           : muting,
-			exclusive_unmute : exc_unmute,
-			stop             : stop,
-			play             : play,
-			ffwd             : ffwd,
-			restart          : restart,
-			stopped          : stopped,
-			playing          : playing,
-			starting         : starting,
-		}
-		fnordstream.stream_nodes = stream_nodes;
-
+			});
+		});
+		fnordstream.stream_nodes[i] = nodes;
 		parent.appendChild(n);
-	}
+	}); // foreach stream
 }
 
 function assign_viewports() {
@@ -485,7 +434,7 @@ function update_displays_table(fnordstream) {
 		n.hidden = false;
 
 		let nodes = {};
-		replace_nodes(children, i, nodes);
+		adapt_nodes(children, i, nodes);
 
 		nodes.display_name.textContent = d.name;
 		nodes.display_pos.textContent  = d.geo.x + "," + d.geo.y;
@@ -560,25 +509,26 @@ function viewports_notification(fnordstream, msg) {
 
 function mpv_property_changed(fnordstream, property, stream_id) {
 	const property_map = { /* property -> node_name map */
-		"media-title"            : "title",
-		"demuxer-cache-duration" : "buffer",
-		"mute"                   : "muting",
-		"video-bitrate"          : "vbr",
+		"media-title"            : "stream_title",
+		"demuxer-cache-duration" : "stream_buffer",
+		"mute"                   : "stream_muting",
+		"volume"                 : "stream_volume",
+		"video-bitrate"          : "stream_vbr",
 	};
 	const update_funcs = { /* node_name -> update function map */
-		"title"  : (n, v) => n.textContent = v,
-		"buffer" : (n, v) => {
+		"stream_title"  : (n, v) => n.textContent = v,
+		"stream_buffer" : (n, v) => {
 				let str = Math.round(v*10)/10 + "";
 				str += (str.indexOf(".")>=0) ? "" : ".0";
 				n.textContent = "Buffer: " + str + "s";
 			},
-		"vbr" : (n, v) => {
+		"stream_vbr" : (n, v) => {
 				let str = Math.round(v/100000)/10 + "";
 				str += (str.indexOf(".")>=0) ? "" : ".0";
 				n.textContent = "VBR: " + str + "Mb/s";
 			},
-		"volume" : (n, v) => n.value       = v,
-		"muting" : (n, v) => n.checked     = !v,
+		"stream_volume" : (n, v) => n.value       = v,
+		"stream_muting" : (n, v) => n.checked     = !v,
 	};
 
 	let target = property_map[property.name];
@@ -638,17 +588,17 @@ function player_status(fnordstream, msg) {
 	const status = payload.status;
 	const stream_nodes = fnordstream.stream_nodes;
 
-	stream_nodes[stream_id].volume.disabled              = status != "playing";
-	stream_nodes[stream_id].buffer.disabled              = status != "playing";
-	stream_nodes[stream_id].muting.disabled              = status != "playing";
-	stream_nodes[stream_id].exclusive_unmute.disabled    = status != "playing";
-	stream_nodes[stream_id].stop.disabled                = (status == "stopped") || (status == "stopping");
-	stream_nodes[stream_id].play.disabled                = (status != "stopped") && (status != "stopping");
-	stream_nodes[stream_id].ffwd.disabled                = status != "playing";
+	stream_nodes[stream_id].stream_volume.disabled              = status != "playing";
+	stream_nodes[stream_id].stream_buffer.disabled              = status != "playing";
+	stream_nodes[stream_id].stream_muting.disabled              = status != "playing";
+	stream_nodes[stream_id].stream_exclusive_unmute.disabled    = status != "playing";
+	stream_nodes[stream_id].stream_stop.disabled                = (status == "stopped") || (status == "stopping");
+	stream_nodes[stream_id].stream_play.disabled                = (status != "stopped") && (status != "stopping");
+	stream_nodes[stream_id].stream_ffwd.disabled                = status != "playing";
 
-	stream_nodes[stream_id].playing.hidden               = status != "playing";
-	stream_nodes[stream_id].stopped.hidden               = (status != "stopped") && (status != "stopping");
-	stream_nodes[stream_id].starting.hidden              = (status != "starting") && (status != "restarting");
+	stream_nodes[stream_id].stream_playing.hidden               = status != "playing";
+	stream_nodes[stream_id].stream_stopped.hidden               = (status != "stopped") && (status != "stopping");
+	stream_nodes[stream_id].stream_starting.hidden              = (status != "starting") && (status != "restarting");
 
 	//console.log("player_status", stream_id, status);
 }
@@ -898,7 +848,7 @@ function replace_child(list,id,ext) {
 	for (let i=0;i<list.length;i++) {
 		let n = list[i];
 
-		/* replace for-tags as well */
+		// replace for-tags as well
 		if (n.attributes && n.attributes["for"] && (n.attributes["for"].value == id)) {
 			n.attributes["for"].value += ext;
 		}
@@ -915,7 +865,7 @@ function replace_child(list,id,ext) {
 	return res;
 }
 
-function replace_nodes(nodelist, new_extension, node_table) {
+function adapt_nodes(nodelist, new_extension, node_table) {
 	if ((!nodelist) || (nodelist.length < 1))
 		return 0;
 	let i=0;
@@ -931,7 +881,7 @@ function replace_nodes(nodelist, new_extension, node_table) {
 			i++;
 		}
 
-		i+=replace_nodes(n.childNodes, new_extension, node_table);
+		i+=adapt_nodes(n.childNodes, new_extension, node_table);
 	});
 	return i;
 }
@@ -950,7 +900,7 @@ function create_displays(fnordstream) {
 	n.hidden = false;
 
 	nodes.display_table = n;
-	replace_nodes(children, conn_id, nodes);
+	adapt_nodes(children, conn_id, nodes);
 
 	nodes.refresh_displays.addEventListener('click', (event) =>
 		fnordstream.ws_send({request:"detect_displays"}));
