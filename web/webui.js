@@ -242,8 +242,7 @@ function setup_stream_controls(fnordstream, streams) {
 		n.id += i;
 		n.hidden = false;
 
-		let nodes = {};
-		adapt_nodes(children, i, nodes);
+		let nodes = adapt_nodes(children, i);
 
 		nodes.stream_idx.textContent   = i;
 		nodes.stream_title.textContent = url;
@@ -330,6 +329,7 @@ function assign_viewports() {
 	draw_viewports();  // redraw viewports
 }
 
+// OK
 function draw_viewports(fnordstream) {
 	/* redraw all if not specified */
 	if (!fnordstream) {
@@ -360,6 +360,7 @@ function draw_viewports(fnordstream) {
 	});
 }
 
+// OK
 function draw_displays(fnordstream) {
 	/* redraw all if not specified */
 	if (!fnordstream) {
@@ -369,13 +370,13 @@ function draw_displays(fnordstream) {
 	const lightmode = document.getElementById('lightSwitch').checked;
 	const displays  = fnordstream.displays;
 
-	let w_ext=0, h_ext=0
-	// TODO: reduce?
-	displays.forEach( d => {
+	// figure out extents of display(s) setup
+	let [w_ext, h_ext] = displays.reduce( (res,d) => {
 		const geo = d.geo;
-		w_ext = Math.max(w_ext, geo.x + geo.w);
-		h_ext = Math.max(h_ext, geo.y + geo.h);
-	});
+		res[0] = Math.max(res[0], geo.x + geo.w);
+		res[1] = Math.max(res[1], geo.y + geo.h);
+		return res;
+	}, [0,0]);
 
 	//console.log("extents:",w_ext,h_ext);
 	w_ext/=8; h_ext/=8;
@@ -410,10 +411,13 @@ function draw_displays(fnordstream) {
 	draw_viewports(fnordstream);
 }
 
+// OK
 function set_displays(fnordstream) {
 	fnordstream.ws_send({request : "set_displays", displays : fnordstream.displays});
 }
 
+// TODO: same IDs for multiple hosts??
+// discard old displays table and rebuild
 function update_displays_table(fnordstream) {
 	const displays = fnordstream.displays;
 	const target   = fnordstream.display_nodes.display_tbody;
@@ -428,15 +432,11 @@ function update_displays_table(fnordstream) {
 		n.id += i;
 		n.hidden = false;
 
-		let nodes = {};
-		adapt_nodes(children, i, nodes);
-
+		let nodes = adapt_nodes(children, i);
 		nodes.display_name.textContent = d.name;
 		nodes.display_pos.textContent  = d.geo.x + "," + d.geo.y;
 		nodes.display_res.value        = d.geo.w + "x" + d.geo.h;
 		nodes.display_res.addEventListener('change', (event) => {
-			let disp_id = parseInt(event.target.id.match(/(\d+)$/)[0]);
-			let d       = displays[disp_id];
 			let val     = event.target.value;
 			let wxh     = val.match(/(\d+)x(\d+)$/);
 			let short   = val.match(/(\d+)p$/);
@@ -454,14 +454,12 @@ function update_displays_table(fnordstream) {
 			event.target.value = d.geo.w + "x" + d.geo.h;
 			draw_displays(fnordstream);
 			set_displays(fnordstream);
-		})
+		});
 		nodes.display_use.checked = d.use;
 		nodes.display_use.addEventListener('change', (event) => {
-			let disp_id = parseInt(event.target.id.match(/(\d+)$/)[0]);
-			let d = displays[disp_id];
 			d.use = event.target.checked;
 			set_displays(fnordstream);
-		})
+		});
 
 		target.appendChild(n);
 	}); /* foreach display */
@@ -469,6 +467,7 @@ function update_displays_table(fnordstream) {
 	draw_displays(fnordstream);
 }
 
+// OK
 function request_viewports() {
 	primary.ws_send({
 		request   : "suggest_viewports",
@@ -493,6 +492,7 @@ function displays_notification(fnordstream, msg) {
 	request_viewports();
 }
 
+// OK
 function viewports_notification(fnordstream, msg) {
 	if(!fnordstream.primary) return;
 	v = msg.payload
@@ -502,6 +502,7 @@ function viewports_notification(fnordstream, msg) {
 	assign_viewports();
 }
 
+// OK
 function mpv_property_changed(fnordstream, property, stream_id) {
 	const property_map = { /* property -> node_name map */
 		"media-title"            : "stream_title",
@@ -549,9 +550,9 @@ function mpv_property_changed(fnordstream, property, stream_id) {
 		return;
 	}
 	update_func(node,val);
-
 }
 
+// OK
 function player_event(fnordstream, msg) {
 	const event = msg.payload;
 
@@ -570,6 +571,7 @@ function player_event(fnordstream, msg) {
 		//console.log(stream_id, event, msg);
 }
 
+// OK
 function player_status(fnordstream, msg) {
 	const payload = msg.payload;
 
@@ -598,6 +600,7 @@ function player_status(fnordstream, msg) {
 	//console.log("player_status", stream_id, status);
 }
 
+// TODO: global playing status
 function streams_playing(active) {
 	if (active == global.streams_active) return;
 	global.streams_active = active;
@@ -815,6 +818,7 @@ function commands_probed(fnordstream, msg) {
 	populate_cmds_table(results);
 }
 
+// OK
 function profiles_notification(fnordstream, msg) {
 	if (!fnordstream.primary) return;
 	const profiles = msg.payload;
@@ -831,6 +835,7 @@ const ws_handlers = {
 	"player_status"  : player_status,
 };
 
+// TODO: remove
 function replace_child(list,id,ext) {
 	if ((!list) || (list.length < 1))
 		return;
@@ -856,42 +861,41 @@ function replace_child(list,id,ext) {
 	return res;
 }
 
+// OK
 function adapt_nodes(nodelist, new_extension, node_table) {
 	if ((!nodelist) || (nodelist.length < 1))
-		return 0;
-	let i=0;
+		return;
+	let res = node_table || [];
 	nodelist.forEach(n => {
-		/* process for-tags as well */
+		// adapt for-tags as well
 		if (n.attributes && n.attributes["for"] && (n.attributes["for"].value.slice(-1) == "-"))
 			n.attributes["for"].value += new_extension;
 
+		// adapt IDs
 		if (n.id && (n.id.slice(-1) == "-")) {
-			if (node_table)
-				node_table[n.id.slice(0,-1)] = n;
+			res[n.id.slice(0,-1)] = n;
 			n.id += new_extension;
-			i++;
 		}
 
-		i+=adapt_nodes(n.childNodes, new_extension, node_table);
+		adapt_nodes(n.childNodes, new_extension, res);
 	});
-	return i;
+	return res;
 }
 
+// OK
 function create_displays(fnordstream) {
 	const server  = fnordstream.peer.split(":")[0];
-	const nodes   = fnordstream.display_nodes;
 	const conn_id = fnordstream.conn_id;
 	let template  = document.getElementById('display_table-');
 	let parent    = template.parentNode;
-	//parent.replaceChildren(template);
 
 	let n = template.cloneNode(true);
 	let children = n.childNodes;
 	n.id += conn_id;
 	n.hidden = false;
 
+	let nodes = adapt_nodes(children, conn_id);
 	nodes.display_table = n;
-	adapt_nodes(children, conn_id, nodes);
 
 	nodes.refresh_displays.addEventListener('click', (event) =>
 		fnordstream.ws_send({request:"detect_displays"}));
@@ -899,10 +903,13 @@ function create_displays(fnordstream) {
 
 	const info_tt = new bootstrap.Tooltip(nodes.display_info);
 
+	fnordstream.display_nodes = nodes;
+
 	parent.appendChild(n);
 	nodes.refresh_displays.dispatchEvent(new Event("click"));
 }
 
+// OK
 function ws_send(requests) {
 	requests = Array.isArray(requests) ? requests : [requests];
 	if(this == window) {
@@ -932,8 +939,8 @@ function add_connection(dst) {
 		displays      : [],
 		viewports     : [],
 
-		display_nodes : {},
-		//stream_nodes  : {},
+		display_nodes : undefined,
+		stream_nodes  : undefined,  // TODO: handle stream-event before stream_nodes valid
 	};
 	fnordstreams[dst]   = fnordstream;
 	fnordstream.primary = fnordstream.conn_id == 0;
