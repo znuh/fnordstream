@@ -556,7 +556,7 @@ function mpv_property_changed(fnordstream, property, stream_id) {
 function player_event(fnordstream, msg) {
 	const event = msg.payload;
 
-	if ((!event) || (event.length < 1))
+	if ((!event) || (event.length < 1) || (!fnordstream.stream_nodes))
 		return;
 
 	stream_id = parseInt(msg.stream_id);
@@ -575,7 +575,7 @@ function player_event(fnordstream, msg) {
 function player_status(fnordstream, msg) {
 	const payload = msg.payload;
 
-	if ((!payload) || (payload.length < 1))
+	if ((!payload) || (payload.length < 1) || (!fnordstream.stream_nodes))
 		return;
 
 	stream_id = parseInt(msg.stream_id);
@@ -940,7 +940,7 @@ function add_connection(dst) {
 		viewports     : [],
 
 		display_nodes : undefined,
-		stream_nodes  : undefined,  // TODO: handle stream-event before stream_nodes valid
+		stream_nodes  : undefined,
 	};
 	fnordstreams[dst]   = fnordstream;
 	fnordstream.primary = fnordstream.conn_id == 0;
