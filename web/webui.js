@@ -194,32 +194,32 @@ function register_handlers() {
 
 	const streams_mute_all    = document.getElementById('streams_mute_all');
 	streams_mute_all.addEventListener('click', (event) => {
-		ws_sendmulti(undefined, "stream_ctl", "mute", "yes");
+		global_streamctl("mute", "yes");
 	})
 
 	const streams_stop_all    = document.getElementById('streams_stop_all');
 	streams_stop_all.addEventListener('click', (event) => {
-		ws_sendmulti(undefined, "stream_ctl", "play", "no");
+		global_streamctl("play", "no");
 	})
 
 	const streams_play_all    = document.getElementById('streams_play_all');
 	streams_play_all.addEventListener('click', (event) => {
-		ws_sendmulti(undefined, "stream_ctl", "play", "yes");
+		global_streamctl("play", "yes");
 	})
 
 	const streams_ffwd_all    = document.getElementById('streams_ffwd_all');
 	streams_ffwd_all.addEventListener('click', (event) => {
-		ws_sendmulti(undefined, "stream_ctl", "seek", "1");
+		global_streamctl("seek", "1");
 	})
 
 	const streams_restart_all = document.getElementById('streams_restart_all');
 	streams_restart_all.addEventListener('click', (event) => {
-		ws_sendmulti(undefined, "stream_ctl", "play", "restart");
+		global_streamctl("play", "restart");
 	})
 
 	const streams_quit = document.getElementById('streams_quit');
 	streams_quit.addEventListener('click', (event) => {
-		ws_send({request : "stop_streams"});
+		Object.values(fnordstreams).forEach(v => v.ws_send({request : "stop_streams"}));
 		//streams_playing(false);
 	});
 
@@ -238,11 +238,14 @@ function register_handlers() {
 	})
 }
 
+// TODO: multi-host
 function setup_stream_controls(fnordstream, streams) {
 	let template = document.getElementById('stream-');
 	let parent   = template.parentNode;
 	const ext    = fnordstream.conn_id+".";
 	parent.replaceChildren(template);
+
+	// TODO: if fnordstream.stream_nodes already exists delete nodes first
 
 	fnordstream.stream_nodes = streams.map( (stream,i) => {
 		const url = stream.location;
@@ -274,7 +277,7 @@ function setup_stream_controls(fnordstream, streams) {
 			});
 		});
 		nodes.stream_exclusive_unmute.addEventListener('click', (event) => {
-			ws_sendmulti(i, "stream_ctl", "mute", "yes");  // TODO
+			global_streamctl("mute", "yes", [fnordstream, i]);
 			fnordstream.ws_send({
 				request     : "stream_ctl",
 				stream_id   : i,
@@ -319,16 +322,16 @@ function setup_stream_controls(fnordstream, streams) {
 	}); // foreach stream
 }
 
+// TBD
 function assign_viewports() {
 	// clear assigned viewports and streams first
 	Object.values(fnordstreams).forEach(v => {
-		v.viewports = [];
+		v.viewports        = [];
 		v.stream_locations = [];
 	});
 	const viewports        = global.viewports;
 	const stream_locations = global.stream_locations;
 	// assign global.viewports and stream_location to fnordstream instances
-	// TODO: map?
 	viewports.forEach( (vp, idx) => {
 		const stream_location = stream_locations[idx];
 		const fnordstream = primary;     // TODO
@@ -425,8 +428,7 @@ function set_displays(fnordstream) {
 	fnordstream.ws_send({request : "set_displays", displays : fnordstream.displays});
 }
 
-// TODO: same IDs for multiple hosts??
-// discard old displays table and rebuild
+// OK - discard old displays table and rebuild
 function update_displays_table(fnordstream) {
 	const displays = fnordstream.displays;
 	const ext      = fnordstream.conn_id+".";
@@ -610,8 +612,9 @@ function player_status(fnordstream, msg) {
 	//console.log("player_status", stream_id, status);
 }
 
-// TODO: global playing status
+// OK - global playing status
 function streams_playing(active) {
+	active = active || Object.values(fnordstreams).some(v => v.playing);
 	if (active == global.streams_active) return;
 	global.streams_active = active;
 
@@ -627,18 +630,20 @@ function streams_playing(active) {
 	document.getElementById('control-tab').disabled = !active;
 }
 
-// TODO: global playing
+// OK
 function global_status(fnordstream, msg) {
 	const status = msg.payload;
 
 	if ((!status) || (status.length < 1))
 		return;
 
-	document.title = "fnordstream v"+status.version+" @"+window.location.hostname;
+	if(fnordstream.primary)
+		document.title = "fnordstream v"+status.version+" @"+window.location.hostname;
 
+	fnordstream.playing = status.playing;
 	streams_playing(status.playing);
 
-	if (!status.playing)
+	if (!status.playing)  // TODO: remove stream nodes if any
 		return;
 
 	const streams = status.streams;
@@ -927,8 +932,34 @@ function ws_send(requests) {
 		return;
 	}
 	const buf = requests.reduce((res,v) => v ? res+JSON.stringify(v) : res, "");
-	this.websock.send(buf);
+	if(buf.length>2)
+		this.websock.send(buf);
 }
+
+//"mute", "yes", [fnordstream, i]);
+function global_streamctl(ctl, val, exempt) {
+	Object.values(fnordstreams).forEach(fs => {
+		// TODO
+		//fs.ws_send(
+	});
+}
+
+/*
+function ws_sendmulti(exempt, request, ctl, value) {
+	if(!ws) return;
+	let msg = "";
+	for (let i=0;i<stream_locations.length;i++) {
+		if(i==exempt) continue;
+		msg += JSON.stringify(
+			{
+				request     : request,
+				stream_id   : i,
+				ctl         : ctl,
+				value       : value,
+			});
+	}
+	ws.send(msg);
+} */
 
 function add_connection(dst) {
   dst += dst.search(":")<0 ? ":8090" : "";
@@ -948,6 +979,7 @@ function add_connection(dst) {
 		displays      : [],
 		viewports     : [],
 
+		playing       : undefined,
 		display_nodes : undefined,
 		stream_nodes  : undefined,
 	};
@@ -989,23 +1021,6 @@ function add_connection(dst) {
 	  console.log("websock closed", fnordstream.conn_id,dst);
   });
 }
-
-/*
-function ws_sendmulti(exempt, request, ctl, value) {
-	if(!ws) return;
-	let msg = "";
-	for (let i=0;i<stream_locations.length;i++) {
-		if(i==exempt) continue;
-		msg += JSON.stringify(
-			{
-				request     : request,
-				stream_id   : i,
-				ctl         : ctl,
-				value       : value,
-			});
-	}
-	ws.send(msg);
-} */
 
 document.addEventListener("DOMContentLoaded", function() {
   add_connection(window.location.host);
