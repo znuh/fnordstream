@@ -233,6 +233,7 @@ function register_handlers() {
 function setup_stream_controls(fnordstream, streams) {
 	let template = document.getElementById('stream-');
 	let parent   = template.parentNode;
+	const ext    = fnordstream.conn_id+".";
 	parent.replaceChildren(template);
 
 	fnordstream.stream_nodes = streams.map( (stream,i) => {
@@ -242,7 +243,7 @@ function setup_stream_controls(fnordstream, streams) {
 		n.id += i;
 		n.hidden = false;
 
-		let nodes = adapt_nodes(children, i);
+		let nodes = adapt_nodes(children, ext+i);
 
 		nodes.stream_idx.textContent   = i;
 		nodes.stream_title.textContent = url;
@@ -420,6 +421,7 @@ function set_displays(fnordstream) {
 // discard old displays table and rebuild
 function update_displays_table(fnordstream) {
 	const displays = fnordstream.displays;
+	const ext      = fnordstream.conn_id+".";
 	const target   = fnordstream.display_nodes.display_tbody;
 	const template = document.getElementById('display_tr-');
 
@@ -432,7 +434,7 @@ function update_displays_table(fnordstream) {
 		n.id += i;
 		n.hidden = false;
 
-		let nodes = adapt_nodes(children, i);
+		let nodes = adapt_nodes(children, ext+i);
 		nodes.display_name.textContent = d.name;
 		nodes.display_pos.textContent  = d.geo.x + "," + d.geo.y;
 		nodes.display_res.value        = d.geo.w + "x" + d.geo.h;
