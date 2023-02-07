@@ -150,6 +150,14 @@ function register_handlers() {
 		//console.log(stream_locations);
 	});
 
+	// add new host connection
+	const add_host = document.getElementById('add_host');
+	add_host.addEventListener('change', (event) => {
+		if(event.target === document.activeElement)
+			add_connection(event.target.value);
+		event.target.value="";
+	});
+
 	/* options */
 
 	const streamlink = document.getElementById('use_streamlink');
