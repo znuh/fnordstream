@@ -262,16 +262,29 @@ func global_status(hub *StreamHub, client *Client, request map[string]interface 
 	send_response(hub.notifications, client, "global_status", &note)
 }
 
-func lookup_stream(hub *StreamHub, request map[string]interface {}) *Stream {
-	if !hub.streams_playing { return nil }
+func lookup_stream(hub *StreamHub, request map[string]interface {}) (res *Stream, bulk_sel bool) {
 
-	tmp, ok := request["stream_id"].(float64)
-	if !ok { return nil }
+	if !hub.streams_playing { return }
 
-	stream_id := int(tmp)
-	if stream_id < 0 || stream_id >= len(hub.stream_locations) { return nil }
+	stream_id := -1
 
-	return hub.streams[stream_id]
+	sid_f, ok := request["stream_id"].(float64)
+	if ok {      // regular stream_id (int)
+		stream_id = int(sid_f)
+	} else {     // special stream_id ( !id or * ) (string)
+		sid_s, ok := request["stream_id"].(string)
+		if !ok || len(sid_s)<1 { return }
+		bulk_sel = (sid_s == "*") || (sid_s[0] == '!')
+		if sid_s[0] == '!' {
+			tmp, err := strconv.Atoi(sid_s[1:])
+			if err == nil { stream_id = tmp }
+		}
+	}
+
+	if (stream_id >= 0) && (stream_id < len(hub.stream_locations)) {
+		res = hub.streams[stream_id]
+	}
+	return
 }
 
 func stream_ctl(hub *StreamHub, client *Client, request map[string]interface {}) {
@@ -281,9 +294,6 @@ func stream_ctl(hub *StreamHub, client *Client, request map[string]interface {})
 		"mute"   : true,
 		"play"   : true,
 	}
-
-	stream := lookup_stream(hub, request)
-	if stream == nil { return }
 
 	ctl, ok := request["ctl"].(string)
 	if !ok { return }
@@ -297,7 +307,17 @@ func stream_ctl(hub *StreamHub, client *Client, request map[string]interface {})
 	// sanitize val
 	re  := regexp.MustCompile(`[^a-zA-Z0-9]`)
 	val := re.ReplaceAllString(fmt.Sprint(value),"")
-	stream.Control(&StreamCtl{cmd:ctl, val:val})
+
+	msg := &StreamCtl{cmd:ctl, val:val}
+
+	stream, bulk_sel := lookup_stream(hub, request)
+	if bulk_sel {
+		for _, s := range hub.streams {         // issue to multiple or all streams
+			if s != stream { s.Control(msg) }   // skip excluded stream (if any)
+		}
+	} else if stream != nil {
+		stream.Control(msg)
+	}
 }
 
 func get_profiles(hub *StreamHub, client *Client, request map[string]interface {}) {
