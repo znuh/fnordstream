@@ -8,7 +8,6 @@ let conn_id          = 0;           // connection id counter - increments on con
 let fnordstreams     = {};          // fnordstreams instances (connections to servers, etc.)
 let primary          = undefined;   // primary fnordstream instance
 
-// TODO: global playing status
 let global           = {            // assembled data from individual fnordstream instances
 	streams_active   : undefined,
 	stream_locations : [],
@@ -196,35 +195,22 @@ function register_handlers() {
 	/* ********* control pane *************** */
 
 	const streams_mute_all    = document.getElementById('streams_mute_all');
-	streams_mute_all.addEventListener('click', (event) => {
-		global.streamctl("mute", "yes");
-	})
+	streams_mute_all.addEventListener('click', ev => global.streamctl("mute", "yes"));
 
 	const streams_stop_all    = document.getElementById('streams_stop_all');
-	streams_stop_all.addEventListener('click', (event) => {
-		global.streamctl("play", "no");
-	})
+	streams_stop_all.addEventListener('click', ev => global.streamctl("play", "no"));
 
 	const streams_play_all    = document.getElementById('streams_play_all');
-	streams_play_all.addEventListener('click', (event) => {
-		global.streamctl("play", "yes");
-	})
+	streams_play_all.addEventListener('click', ev => global.streamctl("play", "yes"));
 
 	const streams_ffwd_all    = document.getElementById('streams_ffwd_all');
-	streams_ffwd_all.addEventListener('click', (event) => {
-		global.streamctl("seek", "1");
-	})
+	streams_ffwd_all.addEventListener('click', ev => global.streamctl("seek", "1"));
 
 	const streams_restart_all = document.getElementById('streams_restart_all');
-	streams_restart_all.addEventListener('click', (event) => {
-		global.streamctl("play", "restart");
-	})
+	streams_restart_all.addEventListener('click', ev => global.streamctl("play", "restart"));
 
 	const streams_quit = document.getElementById('streams_quit');
-	streams_quit.addEventListener('click', (event) => {
-		global.ws_send({request : "stop_streams"});
-		//streams_playing(false);
-	});
+	streams_quit.addEventListener('click', ev => global.ws_send({request : "stop_streams"}));
 
 	const tooltips_en = document.getElementById('tooltips_enable');
 	tooltips_en.addEventListener('change', (event) => {
@@ -273,18 +259,10 @@ function setup_stream_controls(fnordstream, streams) {
 			global.streamctl("mute", "yes", [fnordstream, i]);
 			fnordstream.streamctl(i,"mute","no");
 		});
-		nodes.stream_stop.addEventListener('click', (event) => {
-			fnordstream.streamctl(i,"play","no");
-		});
-		nodes.stream_play.addEventListener('click', (event) => {
-			fnordstream.streamctl(i,"play","yes");
-		});
-		nodes.stream_restart.addEventListener('click', (event) => {
-			fnordstream.streamctl(i,"play","restart");
-		});
-		nodes.stream_ffwd.addEventListener('click', (event) => {
-			fnordstream.streamctl(i,"seek","1");
-		});
+		nodes.stream_stop.addEventListener('click',    ev => fnordstream.streamctl(i,"play","no"));
+		nodes.stream_play.addEventListener('click',	   ev => fnordstream.streamctl(i,"play","yes"));
+		nodes.stream_restart.addEventListener('click', ev => fnordstream.streamctl(i,"play","restart"));
+		nodes.stream_ffwd.addEventListener('click',    ev => fnordstream.streamctl(i,"seek","1"));
 		parent.appendChild(n);
 		return nodes;
 	}); // foreach stream
@@ -905,41 +883,34 @@ function ws_send(requests, exempt) {
 		this.websock.send(buf);
 }
 
+// OK
 function streamctl(stream_id,ctl,val) {
 	this.websock.send(JSON.stringify({
 		request   : "stream_ctl",
 		stream_id : stream_id,
 		ctl       : ctl,
-		val       : val
-	});
+		value     : val
+	}));
 }
 
-//"mute", "yes", [fnordstream, i]);
+// OK
 function global_streamctl(ctl, val, exempt) {
 	const [ex_fns, ex_id] = exempt ? exempt : [];
-
-	Object.values(fnordstreams).forEach(fs => {
-		// TODO
-		//fs.ws_send(
+	let ex_msg = exempt ? JSON.stringify({
+		request   : "stream_ctl",
+		stream_id : "!"+ex_id,
+		ctl       : ctl,
+		value     : val
+	}) : null;
+	let msg = JSON.stringify({
+		request   : "stream_ctl",
+		stream_id : "*",
+		ctl       : ctl,
+		value     : val
 	});
+	Object.values(fnordstreams).forEach(fs =>
+		fs.websock.send(fs != ex_fns ? msg : ex_msg));
 }
-
-/*
-function ws_sendmulti(exempt, request, ctl, value) {
-	if(!ws) return;
-	let msg = "";
-	for (let i=0;i<stream_locations.length;i++) {
-		if(i==exempt) continue;
-		msg += JSON.stringify(
-			{
-				request     : request,
-				stream_id   : i,
-				ctl         : ctl,
-				value       : value,
-			});
-	}
-	ws.send(msg);
-} */
 
 function add_connection(dst) {
   dst += dst.search(":")<0 ? ":8090" : "";
