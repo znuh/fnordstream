@@ -57,8 +57,8 @@ func auto_layout(displays []Display, n_streams int) []Viewport {
 
 	/* count usable displays (Use==true) */
 	n_displays := 0
-	for i:=0; i<len(displays); i++ {
-		if displays[i].Use { n_displays++ }
+	for _, disp := range displays {
+		if disp.Use { n_displays++ }
 	}
 
 	/* no usable display found? */
@@ -66,9 +66,10 @@ func auto_layout(displays []Display, n_streams int) []Viewport {
 
 	fmt.Printf("n_displays: %d, n_streams: %d\n", n_displays, n_streams)
 
+	viewport_id := 0
 	/* iterate over displays again, allocate viewports */
-	for i:=0; (n_streams>0) && (n_displays>0); i++ {
-		display := displays[i]
+	for disp_idx, display := range displays {
+		if (n_streams==0) || (n_displays==0) { break }  // done?
 		if !display.Use { continue }
 
 		x_ofs, y_ofs   := display.Geo.X, display.Geo.Y
@@ -78,10 +79,11 @@ func auto_layout(displays []Display, n_streams int) []Viewport {
 		if n_streams < disp_streams { disp_streams = n_streams }  // clamp number of viewports to n_streams
 		w_step, h_step := w/grid, h/grid
 
-		fmt.Printf("   display[%d] (%s) resolution: %dx%d\n",i,display.Name,w,h)
+		fmt.Printf("   display[%d] (%s) resolution: %dx%d\n",disp_idx,display.Name,w,h)
 		fmt.Printf("   disp_streams: %d - using %dx%d grid (%dx%d)\n",disp_streams,grid,grid,w_step,h_step)
 
 		center_ofs := 0
+		/* allocate viewports for current display */
 		for idx := 0; idx < disp_streams; idx++ {
 			col, row := idx%grid, idx/grid
 
@@ -92,18 +94,20 @@ func auto_layout(displays []Display, n_streams int) []Viewport {
 				center_ofs  = (free * w_step) / 2
 			}
 			vp := Viewport{
-				Display_id : i,
-				W : w_step,
-				H : h_step,
-				X : x_ofs + col*w_step + center_ofs,
-				Y : y_ofs + row*h_step,
+				Id : viewport_id,
+				W  : w_step,
+				H  : h_step,
+				X  : x_ofs + col*w_step + center_ofs,
+				Y  : y_ofs + row*h_step,
+				Display_id  : disp_idx,
 			}
 			viewports = append(viewports, vp)
+			viewport_id++
 			//fmt.Println(idx,row,col)
-		}
+		} // make viewports
 		n_streams-= disp_streams
 		n_displays--
-	}
+	} // foreach (enabled) display
 
 	return viewports
 }
@@ -182,12 +186,13 @@ func start_streams(hub *StreamHub, client *Client, request map[string]interface 
 
 	/* create streams */
 	for idx, location := range hub.stream_locations {
+		viewport := hub.viewports[idx]
 		/* build player config */
 		mpv_args := []string{
 			"--mute=yes",
 			"--border=no",
 			"--really-quiet",
-			"--geometry=" + hub.viewports[idx].String(),
+			"--geometry=" + viewport.String(),
 		}
 		streamlink_args := []string{
 			"--player=mpv",
@@ -220,7 +225,11 @@ func start_streams(hub *StreamHub, client *Client, request map[string]interface 
 
 		stream                 := NewStream(hub.notifications, idx, config)
 		hub.streams[idx]        = stream
-		hub.stream_status[idx]  = &StreamStatus{Player_status:"stopped", Location:&hub.stream_locations[idx]}
+		hub.stream_status[idx]  = &StreamStatus{
+			Player_status : "stopped",
+			Location      : &location,
+			Viewport_id   : viewport.Id,
+		}
 	} // foreach stream
 
 	/* signal playing mode to all clients before starting the streams

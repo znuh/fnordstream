@@ -31,6 +31,7 @@ type Notification struct {
 type StreamStatus struct {
 	Player_status      string                    `json:"player_status"`
 	Location          *string                    `json:"location,omitempty"`
+	Viewport_id        int                       `json:"viewport_id"`
 	Properties         map[string]interface{}    `json:"properties,omitempty"`
 }
 
