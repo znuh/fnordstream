@@ -17,7 +17,10 @@ let global           = {            // assembled data from individual fnordstrea
 
 	update_displays : function() {
 		this.displays = Object.values(fnordstreams).flatMap(v => v.displays);
-	}
+	},
+
+	ws_send         : ws_send,
+	streamctl       : global_streamctl,
 };
 
 function append_option(select,val,txt,selected) {
@@ -194,32 +197,32 @@ function register_handlers() {
 
 	const streams_mute_all    = document.getElementById('streams_mute_all');
 	streams_mute_all.addEventListener('click', (event) => {
-		global_streamctl("mute", "yes");
+		global.streamctl("mute", "yes");
 	})
 
 	const streams_stop_all    = document.getElementById('streams_stop_all');
 	streams_stop_all.addEventListener('click', (event) => {
-		global_streamctl("play", "no");
+		global.streamctl("play", "no");
 	})
 
 	const streams_play_all    = document.getElementById('streams_play_all');
 	streams_play_all.addEventListener('click', (event) => {
-		global_streamctl("play", "yes");
+		global.streamctl("play", "yes");
 	})
 
 	const streams_ffwd_all    = document.getElementById('streams_ffwd_all');
 	streams_ffwd_all.addEventListener('click', (event) => {
-		global_streamctl("seek", "1");
+		global.streamctl("seek", "1");
 	})
 
 	const streams_restart_all = document.getElementById('streams_restart_all');
 	streams_restart_all.addEventListener('click', (event) => {
-		global_streamctl("play", "restart");
+		global.streamctl("play", "restart");
 	})
 
 	const streams_quit = document.getElementById('streams_quit');
 	streams_quit.addEventListener('click', (event) => {
-		Object.values(fnordstreams).forEach(v => v.ws_send({request : "stop_streams"}));
+		global.ws_send({request : "stop_streams"});
 		//streams_playing(false);
 	});
 
@@ -260,62 +263,27 @@ function setup_stream_controls(fnordstream, streams) {
 		nodes.stream_title.textContent = url;
 		nodes.stream_volume.addEventListener('input', (event) => {
 			const val = event.target.value;
-			fnordstream.ws_send({
-				request     : "stream_ctl",
-				stream_id   : i,
-				ctl         : "volume",
-				value       : val
-			});
+			fnordstream.streamctl(i,"volume",val);
 		});
 		nodes.stream_muting.addEventListener('change', (event) => {
 			const val = event.target.checked ? "no" : "yes";
-			fnordstream.ws_send({
-				request     : "stream_ctl",
-				stream_id   : i,
-				ctl         : "mute",
-				value       : val
-			});
+			fnordstream.streamctl(i,"mute",val);
 		});
 		nodes.stream_exclusive_unmute.addEventListener('click', (event) => {
-			global_streamctl("mute", "yes", [fnordstream, i]);
-			fnordstream.ws_send({
-				request     : "stream_ctl",
-				stream_id   : i,
-				ctl         : "mute",
-				value       : "no",
-			});
+			global.streamctl("mute", "yes", [fnordstream, i]);
+			fnordstream.streamctl(i,"mute","no");
 		});
 		nodes.stream_stop.addEventListener('click', (event) => {
-			fnordstream.ws_send({
-				request     : "stream_ctl",
-				stream_id   : i,
-				ctl         : "play",
-				value       : "no"
-			});
+			fnordstream.streamctl(i,"play","no");
 		});
 		nodes.stream_play.addEventListener('click', (event) => {
-			fnordstream.ws_send({
-				request     : "stream_ctl",
-				stream_id   : i,
-				ctl         : "play",
-				value       : "yes"
-			});
+			fnordstream.streamctl(i,"play","yes");
 		});
 		nodes.stream_restart.addEventListener('click', (event) => {
-			fnordstream.ws_send({
-				request     : "stream_ctl",
-				stream_id   : i,
-				ctl         : "play",
-				value       : "restart"
-			});
+			fnordstream.streamctl(i,"play","restart");
 		});
 		nodes.stream_ffwd.addEventListener('click', (event) => {
-			fnordstream.ws_send({
-				request     : "stream_ctl",
-				stream_id   : i,
-				ctl         : "seek",
-				value       : "1"
-			});
+			fnordstream.streamctl(i,"seek","1");
 		});
 		parent.appendChild(n);
 		return nodes;
@@ -925,19 +893,31 @@ function create_displays(fnordstream) {
 }
 
 // OK
-function ws_send(requests) {
+function ws_send(requests, exempt) {
 	requests = Array.isArray(requests) ? requests : [requests];
-	if(this == window) {
-		Object.values(fnordstreams).forEach(v => v.ws_send(requests));
-		return;
-	}
 	const buf = requests.reduce((res,v) => v ? res+JSON.stringify(v) : res, "");
-	if(buf.length>2)
+	if(buf.length<=2) return;
+	if(this == global) {
+		Object.values(fnordstreams).forEach(v =>
+			(v != exempt) ? v.websock.send(buf) : null);
+	}
+	else
 		this.websock.send(buf);
+}
+
+function streamctl(stream_id,ctl,val) {
+	this.websock.send(JSON.stringify({
+		request   : "stream_ctl",
+		stream_id : stream_id,
+		ctl       : ctl,
+		val       : val
+	});
 }
 
 //"mute", "yes", [fnordstream, i]);
 function global_streamctl(ctl, val, exempt) {
+	const [ex_fns, ex_id] = exempt ? exempt : [];
+
 	Object.values(fnordstreams).forEach(fs => {
 		// TODO
 		//fs.ws_send(
@@ -975,6 +955,7 @@ function add_connection(dst) {
 		conn_id       : conn_id++,
 
 		ws_send       : ws_send,
+		streamctl     : streamctl,
 
 		displays      : [],
 		viewports     : [],
