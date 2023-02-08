@@ -589,8 +589,11 @@ function global_status(fnordstream, msg) {
 	fnordstream.playing = status.playing;
 	streams_playing(status.playing);
 
-	if (!status.playing)  // TODO: remove stream nodes if any
+	if (!status.playing) {
+		if(fnordstream.streams_tbody)      // remove streams from table
+			fnordstream.remove_streams();
 		return;
+	}
 
 	const streams = status.streams;
 
@@ -609,7 +612,7 @@ function global_status(fnordstream, msg) {
 				"name"  : key,
 				"data"  : value,
 			}});
-		}
+		} // foreach property
 	});
 }
 
@@ -921,19 +924,29 @@ function add_connection(dst) {
 
   websock.addEventListener('open', (event) => {
 	fnordstream = {
-		peer          : dst,
-		websock       : websock,
-		conn_id       : conn_id++,
+		peer           : dst,
+		websock        : websock,
+		conn_id        : conn_id++,
 
-		ws_send       : ws_send,
-		streamctl     : streamctl,
+		ws_send        : ws_send,
+		streamctl      : streamctl,
 
-		displays      : [],
-		viewports     : [],
+		displays       : [],
+		viewports      : [],
 
-		playing       : undefined,
-		display_nodes : undefined,
-		stream_nodes  : undefined,
+		playing        : undefined,
+		display_nodes  : undefined,
+
+		stream_nodes   : undefined,
+		streams_tbody  : undefined,
+
+		remove_streams : function() {
+			if(!this.streams_tbody) return;
+			this.stream_nodes = undefined;
+			this.streams_tbody.replaceChildren();
+			this.streams_tbody.parent.removeChild(this.streams_tbody);
+			this.streams_tbody = undefined;
+		}
 	};
 	fnordstreams[dst]   = fnordstream;
 	fnordstream.primary = fnordstream.conn_id == 0;
