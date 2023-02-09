@@ -227,7 +227,7 @@ func start_streams(hub *StreamHub, client *Client, request map[string]interface 
 		hub.streams[idx]        = stream
 		hub.stream_status[idx]  = &StreamStatus{
 			Player_status : "stopped",
-			Location      : &location,
+			Location      : location,
 			Viewport_id   : viewport.Id,
 		}
 	} // foreach stream
