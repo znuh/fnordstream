@@ -227,20 +227,32 @@ function register_handlers() {
 	})
 }
 
+function remove_streams() {
+	if(!this.streams_tbody) return;
+	this.stream_nodes = undefined;
+	this.streams_tbody.replaceChildren();
+	this.streams_tbody.remove();
+	this.streams_tbody = undefined;
+}
+
+// OK - setup stream entries for fnordstream instance in streams table
 function setup_stream_controls(fnordstream, streams) {
 	// discard old tbody - if any
 	if (fnordstream.streams_tbody)
 		fnordstream.remove_streams();
 
+	const conn_id = fnordstream.conn_id;
+
 	// create tbody
 	const tbody_template = document.getElementById('streams_tbody-');
 	let tbody            = tbody_template.cloneNode(true);
-	let tbody_nodes      = adapt_nodes([tbody], fnordstream.conn_id);
+	tbody.setAttribute('conn_id', conn_id);
+	let tbody_nodes      = adapt_nodes([tbody], conn_id);
 
 	tbody_nodes.streams_host.textContent = "@"+fnordstream.peer.match(/^[^:]+/)[0]+":";
 
 	const template = document.getElementById('stream-');
-	const ext      = fnordstream.conn_id+".";
+	const ext      = conn_id+".";
 	// create stream nodes
 	fnordstream.stream_nodes = streams.map( (stream,i) => {
 		const url = stream.location;
@@ -271,10 +283,12 @@ function setup_stream_controls(fnordstream, streams) {
 		return nodes;
 	}); // foreach stream
 
-	// TODO: find insertion point
-	// add tbody to streams table
+	// find insertion point
 	const table = document.getElementById('streams-table');
-	table.appendChild(tbody);
+	const insrt = Object.values(table.tBodies).find( tb =>
+		(tb.getAttribute('conn_id') || Infinity) > conn_id);
+	// add tbody to streams table
+	table.insertBefore(tbody, insrt);
 	fnordstream.streams_tbody = tbody;
 }
 
@@ -947,16 +961,10 @@ function add_connection(dst) {
 		playing        : undefined,
 		display_nodes  : undefined,
 
-		stream_nodes   : undefined,
-		streams_tbody  : undefined,
+		streams_tbody  : undefined,  // tbody in streams table
+		stream_nodes   : undefined,  // control/indicator nodes for streams
 
-		remove_streams : function() {
-			if(!this.streams_tbody) return;
-			this.stream_nodes = undefined;
-			this.streams_tbody.replaceChildren();
-			this.streams_tbody.remove();
-			this.streams_tbody = undefined;
-		}
+		remove_streams : remove_streams,
 	};
 	fnordstreams[dst]   = fnordstream;
 	fnordstream.primary = fnordstream.conn_id == 0;
