@@ -469,6 +469,7 @@ function request_viewports() {
 	});
 }
 
+// TBD
 function displays_notification(fnordstream, msg) {
 	v = msg.payload
 	if ((!v) || (v.length < 1)) {
@@ -478,6 +479,8 @@ function displays_notification(fnordstream, msg) {
 		//set_displays();
 		return;
 	}
+	const conn_id = fnordstream.conn_id;
+	v.forEach(v => v.host_id = conn_id);  // add host_id to displays
 	fnordstream.displays = v;
 	global.update_displays();
 	update_displays_table(fnordstream);

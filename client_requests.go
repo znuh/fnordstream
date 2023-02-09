@@ -100,6 +100,7 @@ func auto_layout(displays []Display, n_streams int) []Viewport {
 				X  : x_ofs + col*w_step + center_ofs,
 				Y  : y_ofs + row*h_step,
 				Display_id  : disp_idx,
+				Host_id     : display.Host_id,
 			}
 			viewports = append(viewports, vp)
 			viewport_id++

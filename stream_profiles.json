@@ -5,5 +5,38 @@
    "https://vimeo.com/325910798",
    "https://vimeo.com/1084537"
   ]
+ },
+ "szieher_x3": {
+  "stream_locations": [
+   "szieher.mp4",
+   "szieher.mp4",
+   "szieher.mp4"
+  ],
+  "viewports": [
+   {
+    "display_id": 0,
+    "h": 200,
+    "id": 0,
+    "w": 200,
+    "x": 0,
+    "y": 0
+   },
+   {
+    "display_id": 0,
+    "h": 200,
+    "id": 1,
+    "w": 200,
+    "x": 200,
+    "y": 0
+   },
+   {
+    "display_id": 0,
+    "h": 200,
+    "id": 2,
+    "w": 200,
+    "x": 100,
+    "y": 200
+   }
+  ]
  }
 }

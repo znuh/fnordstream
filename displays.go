@@ -9,9 +9,10 @@ import (
 )
 
 type Display struct {
-	Name  string      `json:"name"`
-	Geo   Geometry    `json:"geo"`
-	Use   bool        `json:"use"`
+	Name     string      `json:"name"`
+	Geo      Geometry    `json:"geo"`
+	Use      bool        `json:"use"`
+	Host_id  int         `json:"host_id"`
 }
 
 func pshell_read() []Display {

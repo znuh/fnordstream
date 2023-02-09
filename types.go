@@ -19,6 +19,7 @@ type Viewport struct {
 	W   int   `json:"w" mapstructure:"w"`
 	H   int   `json:"h" mapstructure:"h"`
 	Display_id   int  `json:"display_id" mapstructure:"display_id"`
+	Host_id      int  `json:"host_id" mapstructure:"host_id"`
 }
 
 func (vp *Viewport) String() string {
