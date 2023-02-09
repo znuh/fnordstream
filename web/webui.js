@@ -4,8 +4,10 @@ let selected_profile = null;
 
 let tooltipList      = undefined;
 
-let conn_id          = 0;           // connection id counter - increments on connection open
-let fnordstreams     = {};          // fnordstreams instances (connections to servers, etc.)
+let conn_id              = 0;      // connection id counter - increments on connection open
+let fnordstreams         = [];     // fnordstreams instances (connections to servers, etc.) by conn_id
+let fnordstream_by_peer  = [];     // fnordstream instances by peer
+
 let primary          = undefined;   // primary fnordstream instance
 
 let global           = {            // assembled data from individual fnordstream instances
@@ -15,12 +17,19 @@ let global           = {            // assembled data from individual fnordstrea
 	viewports        : [],
 
 	update_displays : function() {
-		this.displays = Object.values(fnordstreams).flatMap(v => v.displays);
+		this.displays = fnordstreams.flatMap(v => v.displays);
 	},
 
 	ws_send         : ws_send,
 	streamctl       : global_streamctl,
 };
+
+/* TODOs:
+ * - displays
+ * - viewports
+ * - probe_commands
+ * - ws_closed cleanup
+ */
 
 function append_option(select,val,txt,selected) {
 	var opt = document.createElement("option");
@@ -113,7 +122,7 @@ function register_handlers() {
 	streams_start.addEventListener('click', (event) => {
 		const options = gather_options();
 		streams_playing(true);
-		Object.values(fnordstreams).forEach(v => {
+		fnordstreams.forEach(v => {
 			if((!v.viewports)||(v.viewports.length<1)) return;
 			v.ws_send({                         // send start to all fnordstream instances
 				request   : "start_streams",
@@ -227,6 +236,7 @@ function register_handlers() {
 	})
 }
 
+// OK
 function remove_streams() {
 	if(!this.streams_tbody) return;
 	this.stream_nodes = undefined;
@@ -292,10 +302,10 @@ function setup_stream_controls(fnordstream, streams) {
 	fnordstream.streams_tbody = tbody;
 }
 
-// TBD
+// TBD - assign global viewports to fnordstream instances
 function assign_viewports() {
 	// clear assigned viewports and streams first
-	Object.values(fnordstreams).forEach(v => {
+	fnordstreams.forEach(v => {
 		v.viewports        = [];
 		v.stream_locations = [];
 	});
@@ -315,7 +325,7 @@ function assign_viewports() {
 function draw_viewports(fnordstream) {
 	/* redraw all if not specified */
 	if (!fnordstream) {
-		Object.values(fnordstreams).forEach(v => v.peer ? draw_viewports(v) : null);
+		fnordstreams.forEach(v => v.peer ? draw_viewports(v) : null);
 		return;
 	}
 	const viewports = fnordstream.viewports;
@@ -346,7 +356,7 @@ function draw_viewports(fnordstream) {
 function draw_displays(fnordstream) {
 	/* redraw all if not specified */
 	if (!fnordstream) {
-		Object.values(fnordstreams).forEach(v => v.peer ? draw_displays(v) : null);
+		fnordstreams.forEach(v => v.peer ? draw_displays(v) : null);
 		return;
 	}
 	const lightmode = document.getElementById('lightSwitch').checked;
@@ -584,7 +594,7 @@ function player_status(fnordstream, msg) {
 
 // OK - global playing status
 function streams_playing(active) {
-	active = active || Object.values(fnordstreams).some(v => v.playing);
+	active = active || fnordstreams.some(v => v.playing);
 	if (active == global.streams_active) return;
 	global.streams_active = active;
 
@@ -902,10 +912,8 @@ function ws_send(requests, exempt) {
 	requests = Array.isArray(requests) ? requests : [requests];
 	const buf = requests.reduce((res,v) => v ? res+JSON.stringify(v) : res, "");
 	if(buf.length<=2) return;
-	if(this == global) {
-		Object.values(fnordstreams).forEach(v =>
-			(v != exempt) ? v.websock.send(buf) : null);
-	}
+	if(this == global)
+		fnordstreams.forEach(v => (v == exempt) || v.websock.send(buf));
 	else
 		this.websock.send(buf);
 }
@@ -935,13 +943,12 @@ function global_streamctl(ctl, val, exempt) {
 		ctl       : ctl,
 		value     : val
 	});
-	Object.values(fnordstreams).forEach(fs =>
-		fs.websock.send(fs != ex_fns ? msg : ex_msg));
+	fnordstreams.forEach(fs => fs.websock.send(fs != ex_fns ? msg : ex_msg));
 }
 
 function add_connection(dst) {
   dst += dst.search(":")<0 ? ":8090" : "";
-  if (fnordstreams[dst]) return; // check for duplicate connections
+  if (fnordstream_by_peer[dst]) return; // check for duplicate connections
 
   const websock = new WebSocket("ws://"+dst+"/ws");
   let fnordstream = null;
@@ -966,7 +973,8 @@ function add_connection(dst) {
 
 		remove_streams : remove_streams,
 	};
-	fnordstreams[dst]   = fnordstream;
+	fnordstreams[conn_id]    = fnordstream;
+	fnordstream_by_peer[dst] = fnordstream;
 	fnordstream.primary = fnordstream.conn_id == 0;
 	if(fnordstream.primary)
 		primary = fnordstream;
@@ -1001,9 +1009,11 @@ function add_connection(dst) {
 	  if(!fnordstream) return;
 	  // TODO: cleanup nodes
 	  fnordstream.remove_streams();
-	  delete(fnordstreams[dst]);
+	  delete(fnordstreams[conn_id]);
+	  delete(fnordstream_by_peer[fnordstream.peer]);
 	  global.update_displays();
 	  console.log("websock closed", fnordstream.conn_id,dst);
+	  fnordstream = undefined;
   });
 }
 
