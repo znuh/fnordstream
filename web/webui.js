@@ -227,23 +227,27 @@ function register_handlers() {
 	})
 }
 
-// TODO: multi-host
 function setup_stream_controls(fnordstream, streams) {
-	let template = document.getElementById('stream-');
-	let parent   = template.parentNode;
-	const ext    = fnordstream.conn_id+".";
-	parent.replaceChildren(template);
+	// discard old tbody - if any
+	if (fnordstream.streams_tbody)
+		fnordstream.remove_streams();
 
-	// TODO: if fnordstream.stream_nodes already exists delete nodes first
+	// create tbody
+	const tbody_template = document.getElementById('streams_tbody-');
+	let tbody            = tbody_template.cloneNode(true);
+	let tbody_nodes      = adapt_nodes([tbody], fnordstream.conn_id);
 
+	tbody_nodes.streams_host.textContent = "@"+fnordstream.peer.match(/^[^:]+/)[0]+":";
+
+	const template = document.getElementById('stream-');
+	const ext      = fnordstream.conn_id+".";
+	// create stream nodes
 	fnordstream.stream_nodes = streams.map( (stream,i) => {
 		const url = stream.location;
-		let n = template.cloneNode(true);
-		let children = n.childNodes;
-		n.id += i;
-		n.hidden = false;
+		let n     = template.cloneNode(true);
+		n.hidden  = false;
 
-		let nodes = adapt_nodes(children, ext+i);
+		let nodes = adapt_nodes([n], ext+i);
 
 		nodes.stream_idx.textContent   = i;
 		nodes.stream_title.textContent = url;
@@ -263,9 +267,15 @@ function setup_stream_controls(fnordstream, streams) {
 		nodes.stream_play.addEventListener('click',	   ev => fnordstream.streamctl(i,"play","yes"));
 		nodes.stream_restart.addEventListener('click', ev => fnordstream.streamctl(i,"play","restart"));
 		nodes.stream_ffwd.addEventListener('click',    ev => fnordstream.streamctl(i,"seek","1"));
-		parent.appendChild(n);
+		tbody.appendChild(n);
 		return nodes;
 	}); // foreach stream
+
+	// TODO: find insertion point
+	// add tbody to streams table
+	const table = document.getElementById('streams-table');
+	table.appendChild(tbody);
+	fnordstream.streams_tbody = tbody;
 }
 
 // TBD

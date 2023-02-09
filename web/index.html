@@ -189,60 +189,63 @@
       <div id="cmd_missing_alert"></div>
     </div><!-- tab-pane -->
     <div class="tab-pane fade" id="control" role="tabpanel" aria-labelledby="control-tab" style="max-width: 700px;">
-      <table class="table">
-        <thead>
-          <tr>
-            <th scope="col">#</th>
-            <th scope="col">Stream</th>
-          </tr>
-        </thead>
-        <tbody></tbody> <!-- dummy tbody so all additional can safely be deleted -->
-        <tbody id="streams-table">
-          <!-- template -->
-          <tr id="stream-" hidden>
-            <th scope="row" id="stream_idx-">0</th>
-            <td> <!-- id="stream-ctl-"> -->
-			  <span>
-				  <span id="stream_playing-">
-					<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 100 100">
-						<circle cx="50" cy="50" r="30" fill="#00c000"></circle>
-					</svg>
+		<table hidden> <!-- dummy table for streams tbody template -->
+			<thead></thead>
+			<tbody id="streams_tbody-"> <!-- streams tbody template -->
+			  <tr><td colspan="2"><b id="streams_host-"></b></td></tr>
+			 </tbody>
+		</table>
+		<table hidden> <!-- dummy table for stream tr template -->
+			<thead></thead>
+			<tbody>
+			  <tr id="stream-" hidden> <!-- stream template -->
+				<th scope="row" id="stream_idx-">0</th>
+				<td>
+				  <span>
+					  <span id="stream_playing-">
+						<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 100 100">
+							<circle cx="50" cy="50" r="30" fill="#00c000"></circle>
+						</svg>
+					  </span>
+					  <span id="stream_stopped-">
+						  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 100 100">
+							<circle cx="50" cy="50" r="30" fill="#c00000"></circle>
+						</svg>
+					  </span>
+						  <div id="stream_starting-" class="spinner-border spinner-border-sm" role="status">
+							<span class="visually-hidden">starting...</span>
+						  </div>
+					  <span id="stream_title-"></span>
 				  </span>
-				  <span id="stream_stopped-">
-					  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 100 100">
-						<circle cx="50" cy="50" r="30" fill="#c00000"></circle>
-					</svg>
-				  </span>
-					  <div id="stream_starting-" class="spinner-border spinner-border-sm" role="status">
-						<span class="visually-hidden">starting...</span>
+				  <div class="container">
+					<div class="row">
+					  <div class="col">
+						<label for="stream_volume-" class="form-label"><i class="bi bi-volume-up-fill"></i></label> <input type="range" class="form-range" id="stream_volume-">
 					  </div>
-				  <span id="stream_title-"></span>
-			  </span>
-              <div class="container">
-                <div class="row">
-                  <div class="col">
-                    <label for="stream_volume-" class="form-label"><i class="bi bi-volume-up-fill"></i></label> <input type="range" class="form-range" id="stream_volume-">
-                  </div>
-                  <div class="col">
-                    <span class="mb-1" id="stream_buffer-"></span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-                    <span class="mb-1" id="stream_vbr-"></span>
-                    <div class="btn-group me-2" role="group" aria-label="group">
-                      <input type="checkbox" class="btn-check" id="stream_muting-" autocomplete="off">
-                      <label class="btn btn-outline-secondary" for="stream_muting-" data-bs-toggle="tooltip" data-bs-title="mute/unmute">
-						<i class="bi bi-volume-mute-fill"></i>
-					  </label> 
-					  <button type="button" class="btn btn-secondary" id="stream_exclusive_unmute-" data-bs-toggle="tooltip" data-bs-title="unmute this stream, mute all others"><i class="bi bi-volume-up-fill"></i>!</button>
-					  <button type="button" class="btn btn-secondary" id="stream_stop-"><i class="bi bi-stop-fill" data-bs-toggle="tooltip" data-bs-title="stop stream"></i></button>
-                      <button type="button" class="btn btn-secondary" id="stream_play-"><i class="bi bi-play-fill" data-bs-toggle="tooltip" data-bs-title="start stream"></i></button>
-                      <button type="button" class="btn btn-secondary" id="stream_restart-"><i class="bi bi-arrow-clockwise" data-bs-toggle="tooltip" data-bs-title="restart stream"></i></button>
-                      <button type="button" class="btn btn-secondary" id="stream_ffwd-"><i class="bi bi-fast-forward-fill" data-bs-toggle="tooltip" data-bs-title="seek 1s forward"></i></button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </td>
-          </tr> <!-- stream tr -->
-        </tbody>
+					  <div class="col">
+						<span class="mb-1" id="stream_buffer-">&nbsp;</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+						<span class="mb-1" id="stream_vbr-">&nbsp;</span>
+						<div class="btn-group me-2" role="group" aria-label="group">
+						  <input type="checkbox" class="btn-check" id="stream_muting-" autocomplete="off">
+						  <label class="btn btn-outline-secondary" for="stream_muting-" data-bs-toggle="tooltip" data-bs-title="mute/unmute">
+							<i class="bi bi-volume-mute-fill"></i>
+						  </label> 
+						  <button type="button" class="btn btn-secondary" id="stream_exclusive_unmute-" data-bs-toggle="tooltip" data-bs-title="unmute this stream, mute all others"><i class="bi bi-volume-up-fill"></i>!</button>
+						  <button type="button" class="btn btn-secondary" id="stream_stop-"><i class="bi bi-stop-fill" data-bs-toggle="tooltip" data-bs-title="stop stream"></i></button>
+						  <button type="button" class="btn btn-secondary" id="stream_play-"><i class="bi bi-play-fill" data-bs-toggle="tooltip" data-bs-title="start stream"></i></button>
+						  <button type="button" class="btn btn-secondary" id="stream_restart-"><i class="bi bi-arrow-clockwise" data-bs-toggle="tooltip" data-bs-title="restart stream"></i></button>
+						  <button type="button" class="btn btn-secondary" id="stream_ffwd-"><i class="bi bi-fast-forward-fill" data-bs-toggle="tooltip" data-bs-title="seek 1s forward"></i></button>
+						</div>
+					  </div>
+					</div>
+				  </div>
+				</td>
+			  </tr> <!-- stream tr template -->
+			</tbody> <!-- template -->
+		</table>
+      <table class="table" id="streams-table">
+        <thead><tr><th scope="col">#</th><th scope="col">Stream</th></tr></thead>
+        <tbody></tbody> <!-- dummy tbody so all additional can safely be deleted -->
       </table>
       <!-- global control -->
      <div class="d-flex justify-content-end mb-3" id="streams-ctl">Global control: &nbsp;
