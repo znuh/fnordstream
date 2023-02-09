@@ -461,6 +461,12 @@ function update_displays_table(fnordstream) {
 
 // OK
 function request_viewports() {
+	// short-circuit requests for 0 streams
+	if(global.stream_locations.length<1) {
+		global.viewports = [];
+		assign_viewports();
+		return;
+	}
 	primary.ws_send({
 		request   : "suggest_viewports",
 		n_streams : global.stream_locations.length,
@@ -907,7 +913,7 @@ function create_displays(fnordstream) {
 	fnordstream.display_nodes = nodes;
 
 	parent.appendChild(n);
-	nodes.refresh_displays.dispatchEvent(new Event("click"));
+	//nodes.refresh_displays.dispatchEvent(new Event("click"));
 }
 
 // OK
@@ -987,6 +993,7 @@ function add_connection(dst) {
 
 	// send initial requests
 	fnordstream.ws_send([
+		{request : "detect_displays"},
 		{request : "global_status"},
 		fnordstream.primary ? {request : "get_profiles"} : undefined,
 		{request : "probe_commands"}
