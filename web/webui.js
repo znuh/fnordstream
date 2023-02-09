@@ -944,7 +944,7 @@ function add_connection(dst) {
   if (fnordstreams[dst]) return; // check for duplicate connections
 
   const websock = new WebSocket("ws://"+dst+"/ws");
-  let fnordstream = {};
+  let fnordstream = null;
 
   websock.addEventListener('open', (event) => {
 	fnordstream = {
@@ -998,7 +998,9 @@ function add_connection(dst) {
   });
 
   websock.addEventListener('close', (event) => {
+	  if(!fnordstream) return;
 	  // TODO: cleanup nodes
+	  fnordstream.remove_streams();
 	  delete(fnordstreams[dst]);
 	  global.update_displays();
 	  console.log("websock closed", fnordstream.conn_id,dst);
