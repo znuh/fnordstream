@@ -944,7 +944,7 @@ function add_connection(dst) {
 			if(!this.streams_tbody) return;
 			this.stream_nodes = undefined;
 			this.streams_tbody.replaceChildren();
-			this.streams_tbody.parent.removeChild(this.streams_tbody);
+			this.streams_tbody.remove();
 			this.streams_tbody = undefined;
 		}
 	};
