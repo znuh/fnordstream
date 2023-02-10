@@ -374,16 +374,16 @@ function draw_viewports(fnordstream) {
 	ctx.fillStyle = lightmode ? '#ffffff' : '#000000';
 	ctx.fillRect(0, 0, cv.width, cv.height);
 
-	viewports.forEach( (geo,i) => {
+	viewports.forEach( vp => {
 		//ctx.fillStyle='#aaaaaa';
-		//ctx.fillRect(3.5+geo.x/8, 0.5+geo.y/8, geo.w/8, geo.h/8);
+		//ctx.fillRect(3.5+vp.x/8, 0.5+vp.y/8, vp.w/8, vp.h/8);
 		ctx.strokeStyle = lightmode ? "#000000" : "#ffffff";
-		ctx.strokeRect(3.5+geo.x/8, 0.5+geo.y/8, geo.w/8, geo.h/8);
+		ctx.strokeRect(3.5+vp.x/8, 0.5+vp.y/8, vp.w/8, vp.h/8);
 
-		const font_h  = geo.h/16;
+		const font_h  = vp.h/16;
 		ctx.fillStyle = lightmode ? "#000000" : "#ffffff";
 		ctx.font      = font_h+'px sans-serif';
-		ctx.fillText(i, 3.5+geo.x/8 + geo.w/16, (geo.y/8)+(geo.h/16)+(font_h/2)-2, geo.w/8);
+		ctx.fillText(vp.id, 3.5+vp.x/8 + vp.w/16, (vp.y/8)+(vp.h/16)+(font_h/2)-2, vp.w/8);
 	});
 }
 
@@ -1002,7 +1002,7 @@ function add_connection(dst) {
 	fnordstream = {
 		peer           : dst,
 		websock        : websock,
-		conn_id        : conn_id++,
+		conn_id        : conn_id,
 
 		ws_send        : ws_send,
 		streamctl      : streamctl,
@@ -1018,7 +1018,7 @@ function add_connection(dst) {
 
 		remove_streams : remove_streams,
 	};
-	fnordstreams[conn_id]    = fnordstream;
+	fnordstreams[conn_id++]  = fnordstream;
 	fnordstream_by_peer[dst] = fnordstream;
 	fnordstream.primary = fnordstream.conn_id == 0;
 	if(fnordstream.primary)
