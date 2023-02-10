@@ -61,9 +61,7 @@ let global           = {            // assembled data from individual fnordstrea
 
 /* TODOs:
  * - postpone start_streams while viewports_notification pending
- * - request viewports again after fnordstream instance lost
  * - probe_commands
- * - ws_closed cleanup
  */
 
 function append_option(select,val,txt,selected) {
@@ -373,6 +371,9 @@ function draw_viewports(fnordstream) {
 	/* clear canvas */
 	ctx.fillStyle = lightmode ? '#ffffff' : '#000000';
 	ctx.fillRect(0, 0, cv.width, cv.height);
+
+	if((!viewports) || (viewports.length<1))  // nothing to do/draw
+		return;
 
 	viewports.forEach( vp => {
 		//ctx.fillStyle='#aaaaaa';
@@ -1020,8 +1021,8 @@ function add_connection(dst) {
 		ws_send        : ws_send,
 		streamctl      : streamctl,
 
-		displays       : [],
-		viewports      : [],
+		displays       : undefined,
+		viewports      : undefined,
 
 		playing        : undefined,
 		display_nodes  : undefined,  // nodes for display table
@@ -1068,14 +1069,18 @@ function add_connection(dst) {
 
   websock.addEventListener('close', (event) => {
 	  if(!fnordstream) return;
-	  // TODO: cleanup nodes, request new viewports
+	  // cleanup nodes
 	  fnordstream.remove_displays();
 	  fnordstream.remove_streams();
+	  // TODO: cleanup commands-probed nodes
 	  const id = fnordstream.conn_id;
+	  const update_viewports = fnordstream.viewports && (fnordstream.viewports.length>0);
 	  delete(fnordstreams[id]);
 	  delete(fnordstream_by_peer[fnordstream.peer]);
 	  fnordstream = undefined;
 	  global.update_displays();
+	  if(update_viewports)
+		request_viewports();
 	  console.log("websock closed", id,dst);
   });
 }
