@@ -335,7 +335,7 @@ function setup_stream_controls(fnordstream, streams) {
 	fnordstream.streams_tbody = tbody;
 }
 
-// OK? - assign global viewports to fnordstream instances
+// OK - assign global viewports to fnordstream instances
 function assign_viewports() {
 	// clear assigned viewports and streams first
 	fnordstreams.forEach(v => {
@@ -511,14 +511,12 @@ function request_viewports() {
 	});
 }
 
-// TBD
+// OK
 function displays_notification(fnordstream, msg) {
-	v = msg.payload
+	let v = msg.payload
 	if ((!v) || (v.length < 1)) {
 		const toast = new bootstrap.Toast(document.getElementById('displaydetect_failed'));
 		toast.show();
-		//displays = [{"name":"Default","use":true,"geo":{"x":0,"y":0,"w":window.screen.width,"h":window.screen.height}}];
-		//set_displays();
 		return;
 	}
 	const conn_id = fnordstream.conn_id;
