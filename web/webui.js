@@ -926,6 +926,15 @@ function adapt_nodes(nodelist, new_extension, node_table) {
 }
 
 // OK
+function remove_displays() {
+	if(!this.display_table) return;
+	this.display_nodes = undefined;
+	this.display_table.replaceChildren();
+	this.display_table.remove();
+	this.display_table = undefined;
+}
+
+// OK
 function create_displays(fnordstream) {
 	const server  = fnordstream.peer.split(":")[0];
 	const conn_id = fnordstream.conn_id;
@@ -940,6 +949,9 @@ function create_displays(fnordstream) {
 	let nodes = adapt_nodes(children, conn_id);
 	nodes.display_table = n;
 
+	nodes.display_host_remove.addEventListener('click', (event) =>
+		fnordstream.websock.close());
+	nodes.display_host_remove.hidden = fnordstream.primary;
 	nodes.refresh_displays.addEventListener('click', (event) =>
 		fnordstream.ws_send({request:"detect_displays"}));
 	nodes.display_host.textContent = "@"+server+":";
@@ -947,6 +959,7 @@ function create_displays(fnordstream) {
 	const info_tt = new bootstrap.Tooltip(nodes.display_info);
 
 	fnordstream.display_nodes = nodes;
+	fnordstream.display_table = n;
 
 	parent.appendChild(n);
 	//nodes.refresh_displays.dispatchEvent(new Event("click"));
@@ -1011,12 +1024,14 @@ function add_connection(dst) {
 		viewports      : [],
 
 		playing        : undefined,
-		display_nodes  : undefined,
+		display_nodes  : undefined,  // nodes for display table
+		display_table  : undefined,  // table holding displays
 
 		streams_tbody  : undefined,  // tbody in streams table
 		stream_nodes   : undefined,  // control/indicator nodes for streams
 
-		remove_streams : remove_streams,
+		remove_displays : remove_displays,
+		remove_streams  : remove_streams,
 	};
 	fnordstreams[conn_id++]  = fnordstream;
 	fnordstream_by_peer[dst] = fnordstream;
@@ -1054,6 +1069,7 @@ function add_connection(dst) {
   websock.addEventListener('close', (event) => {
 	  if(!fnordstream) return;
 	  // TODO: cleanup nodes, request new viewports
+	  fnordstream.remove_displays();
 	  fnordstream.remove_streams();
 	  delete(fnordstreams[conn_id]);
 	  delete(fnordstream_by_peer[fnordstream.peer]);
