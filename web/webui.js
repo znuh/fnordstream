@@ -295,7 +295,7 @@ function setup_stream_controls(fnordstream, streams) {
 	let tbody_nodes      = adapt_nodes([tbody], conn_id);
 
 	tbody_nodes.streams_host_remove.addEventListener('click', (event) =>
-		fnordstream.websock.close());
+		fnordstream.remove());
 	tbody_nodes.streams_host_remove.hidden = fnordstream.primary;
 	tbody_nodes.streams_host.textContent = "@"+fnordstream.peer.match(/^[^:]+/)[0]+":";
 
@@ -954,7 +954,7 @@ function create_displays(fnordstream) {
 	nodes.display_table = n;
 
 	nodes.display_host_remove.addEventListener('click', (event) =>
-		fnordstream.websock.close());
+		fnordstream.remove());
 	nodes.display_host_remove.hidden = fnordstream.primary;
 	nodes.refresh_displays.addEventListener('click', (event) =>
 		fnordstream.ws_send({request:"detect_displays"}));
@@ -971,7 +971,7 @@ function create_displays(fnordstream) {
 
 // OK
 function ws_send(requests, exempt) {
-	requests = Array.isArray(requests) ? requests : [requests];
+	requests = array(requests);
 	const buf = requests.reduce((res,v) => v ? res+JSON.stringify(v) : res, "");
 	if(buf.length<=2) return;
 	if(this == global)
@@ -1008,7 +1008,15 @@ function global_streamctl(ctl, val, exempt) {
 	fnordstreams.forEach(fs => fs.websock.send(fs != ex_fns ? msg : ex_msg));
 }
 
-function add_connection(dst) {
+function fnordstream_remove() {
+	// TBD: delete host from list in url_params
+	url_encode_params();
+	this.websock.close();
+}
+
+function add_connection(dst, add_to_url) {
+  //let port = dst.match(/((?::))(?:[0-9]+)$/);
+  //console.log(port);
   dst += dst.search(":")<0 ? ":8090" : "";
   if (fnordstream_by_peer[dst]) return; // check for duplicate connections
 
@@ -1021,6 +1029,7 @@ function add_connection(dst) {
 		websock        : websock,
 		conn_id        : conn_id,
 
+		remove         : fnordstream_remove,
 		ws_send        : ws_send,
 		streamctl      : streamctl,
 
@@ -1056,6 +1065,9 @@ function add_connection(dst) {
 
     document.getElementById('stream_urls').dispatchEvent(new Event("input"));
     console.log("websock opened",fnordstream.conn_id,dst);
+    if((add_to_url == false)||fnordstream.primary)
+		return;
+	// TBD: add to global.url_params.add_hosts if not yet in list, call url_encode_params
   });
 
   websock.addEventListener('message', (evt) => {
@@ -1088,7 +1100,13 @@ function add_connection(dst) {
   });
 }
 
-// window.history.replaceState(null, '', document.location.origin);
+function url_encode_params() {
+	const res = Object.entries(global.url_params).map(
+		([key, value]) => key+"="+array(value).join(",")).join(";");
+	let new_url = window.location.href.match(/^[^#]+/)[0];
+	new_url += res.length > 0 ? "#"+res : "";
+	window.history.replaceState(null, '', new_url);
+}
 
 function url_decode_params() {
 	const hash = window.location.hash.match(/^#(.*)/);
@@ -1103,12 +1121,16 @@ function url_decode_params() {
 }
 
 document.addEventListener("DOMContentLoaded", function() {
-  add_connection(window.location.host);
+  add_connection(window.location.host, false);
   register_handlers();
 
   // parse additional URL params (if any)
   global.url_params = url_decode_params();
 
   const add_hosts   = global.url_params.add_hosts || [];
-  add_hosts.forEach(h => add_connection(h));
+  add_hosts.forEach(h => add_connection(h, false));
 });
+
+function array(x) { // simple helper
+	return Array.isArray(x) ? x : [x];
+}
