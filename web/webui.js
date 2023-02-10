@@ -1071,11 +1071,12 @@ function add_connection(dst) {
 	  // TODO: cleanup nodes, request new viewports
 	  fnordstream.remove_displays();
 	  fnordstream.remove_streams();
-	  delete(fnordstreams[conn_id]);
+	  const id = fnordstream.conn_id;
+	  delete(fnordstreams[id]);
 	  delete(fnordstream_by_peer[fnordstream.peer]);
-	  global.update_displays();
-	  console.log("websock closed", fnordstream.conn_id,dst);
 	  fnordstream = undefined;
+	  global.update_displays();
+	  console.log("websock closed", id,dst);
   });
 }
 
