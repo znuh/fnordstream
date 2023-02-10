@@ -10,7 +10,9 @@ let fnordstream_by_peer  = [];     // fnordstream instances by peer
 
 let primary          = undefined;   // primary fnordstream instance
 
-let global           = {            // assembled data from individual fnordstream instances
+let global           = {            // assembled data from individual fnordstream instances etc.
+	url_params       : undefined,
+
 	streams_active   : undefined,
 	stream_locations : [],
 
@@ -1086,7 +1088,27 @@ function add_connection(dst) {
   });
 }
 
+// window.history.replaceState(null, '', document.location.origin);
+
+function url_decode_params() {
+	const hash = window.location.hash.match(/^#(.*)/);
+	if(!hash) return;
+	const parts = hash[1].split(';');
+	return parts.reduce( (res,p) => {
+		const [k,v] = p.split('=');
+		if((k != undefined) && (k!=""))
+			res[k] = v ? v.split(',') : [];
+		return res;
+	},[]);
+}
+
 document.addEventListener("DOMContentLoaded", function() {
   add_connection(window.location.host);
   register_handlers();
+
+  // parse additional URL params (if any)
+  global.url_params = url_decode_params();
+
+  const add_hosts   = global.url_params.add_hosts || [];
+  add_hosts.forEach(h => add_connection(h));
 });
