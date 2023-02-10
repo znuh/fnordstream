@@ -306,7 +306,7 @@ function setup_stream_controls(fnordstream, streams) {
 
 		let nodes = adapt_nodes([n], ext+i);
 
-		nodes.stream_idx.textContent   = i;
+		nodes.stream_idx.textContent   = stream.viewport_id != undefined ? stream.viewport_id : i;
 		nodes.stream_title.textContent = url;
 		nodes.stream_volume.addEventListener('input', (event) => {
 			const val = event.target.value;
