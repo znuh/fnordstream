@@ -161,6 +161,7 @@ func start_streams(hub *StreamHub, client *Client, request map[string]interface 
 	/* check & adopt viewports */
 	viewports := []Viewport{}
 	mapstructure.Decode(request["viewports"], &viewports)
+	fmt.Println("start_streams n_viewports:", len(viewports))
 	if len(viewports) < len(locations) {
 		viewports     = hub.viewports
 	}

@@ -18,8 +18,8 @@ type Viewport struct {
 	Y   int   `json:"y" mapstructure:"y"`
 	W   int   `json:"w" mapstructure:"w"`
 	H   int   `json:"h" mapstructure:"h"`
-	Display_id   int  `json:"display_id" mapstructure:"display_id"`
-	Host_id      int  `json:"host_id" mapstructure:"host_id"`
+	Display_id   int  `json:"display_id,omitempty" mapstructure:"display_id"`  // display index (for client)
+	Host_id      int  `json:"host_id,omitempty" mapstructure:"host_id"`        // host_id from display (from/for client)
 }
 
 func (vp *Viewport) String() string {

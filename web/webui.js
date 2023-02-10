@@ -13,9 +13,15 @@ let primary          = undefined;   // primary fnordstream instance
 let global           = {            // assembled data from individual fnordstream instances
 	streams_active   : undefined,
 	stream_locations : [],
-	displays         : [],
-	viewports        : [],
 
+	/* in multi-host mode displays/viewports have their host_id set to the conn_id
+	 * to map them to their fnordstream instances */
+	displays         : [],          // flat array of all displays from all fnordstream instances
+	viewports        : [],          // flat array of all viewports for all fnordstream instances
+
+	/* collect displays from all fnordstream instances into global.displays (needed by request_viewports())
+	 * for non-primary displays display.host_id is set to the conn_id in displays_notification()
+	 * this is used to map displays to their fnordstream instances in multi-host mode */
 	update_displays : function() {
 		this.displays = fnordstreams.flatMap(v => v.displays);
 	},
@@ -24,9 +30,38 @@ let global           = {            // assembled data from individual fnordstrea
 	streamctl       : global_streamctl,
 };
 
+/* displays/viewports handling:
+ * 1) detect_displays is sent to each fnordstream instance
+ *
+ * 2) displays_notification is called w/ displays for each fnordstream reply
+ *    - conn_id is added as host_id to each display
+ * 2.1) displays_notification calls global.update_displays()
+ *    - global list of all displays is rebuilt (displays include host_id (=conn_id))
+ * 2.2) displays_notification calls update_displays_table(fnordstream)
+ *    - displays table for fnordstream instance is renewed in DOM
+ *    - displays and viewports canvases are redrawn as well
+ * 2.3) displays_notification calls request_viewports()
+ *
+ * 3) request_viewports sends global.displays (w/ host_id for each display)
+ *    and n_streams to primary fnordstream instance only
+ *
+ * 4) viewports_notification is triggered with flat list of viewports
+ *    viewports are stored in global.viewports as received.
+ *    (These viewports have host_id set to the host_id of the display
+ *     they're meant for. This host_id is the conn_id of the fnordstream
+ *     instance they are meant for.)
+ * 4.1) viewports_notification calls assign_viewports()
+ *
+ * 5) assign_viewports:
+ * 5.1) - clears fnordstream.viewports for all fnordstream instances
+ * 5.2) - reassigns global.viewports to fnordstream.viewports
+ *        based on the host_id (=conn_id) of each viewport
+ * 5.3) - call draw_viewports() do redraw all viewports
+ */
+
 /* TODOs:
- * - displays
- * - viewports
+ * - postpone start_streams while viewports_notification pending
+ * - request viewports again after fnordstream instance lost
  * - probe_commands
  * - ws_closed cleanup
  */
@@ -302,7 +337,7 @@ function setup_stream_controls(fnordstream, streams) {
 	fnordstream.streams_tbody = tbody;
 }
 
-// TBD - assign global viewports to fnordstream instances
+// OK? - assign global viewports to fnordstream instances
 function assign_viewports() {
 	// clear assigned viewports and streams first
 	fnordstreams.forEach(v => {
@@ -314,7 +349,7 @@ function assign_viewports() {
 	// assign global.viewports and stream_location to fnordstream instances
 	viewports.forEach( (vp, idx) => {
 		const stream_location = stream_locations[idx];
-		const fnordstream = primary;     // TODO
+		const fnordstream = fnordstreams[vp.host_id] || primary;
 		fnordstream.viewports.push(vp);
 		fnordstream.stream_locations.push(stream_location);
 	});
@@ -486,7 +521,8 @@ function displays_notification(fnordstream, msg) {
 		return;
 	}
 	const conn_id = fnordstream.conn_id;
-	v.forEach(v => v.host_id = conn_id);  // add host_id to displays
+	if(conn_id>0)
+		v.forEach(v => v.host_id = conn_id);  // add host_id to displays
 	fnordstream.displays = v;
 	global.update_displays();
 	update_displays_table(fnordstream);
@@ -1017,7 +1053,7 @@ function add_connection(dst) {
 
   websock.addEventListener('close', (event) => {
 	  if(!fnordstream) return;
-	  // TODO: cleanup nodes
+	  // TODO: cleanup nodes, request new viewports
 	  fnordstream.remove_streams();
 	  delete(fnordstreams[conn_id]);
 	  delete(fnordstream_by_peer[fnordstream.peer]);

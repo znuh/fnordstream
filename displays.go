@@ -12,7 +12,8 @@ type Display struct {
 	Name     string      `json:"name"`
 	Geo      Geometry    `json:"geo"`
 	Use      bool        `json:"use"`
-	Host_id  int         `json:"host_id"`
+	Host_id  int         `json:"host_id,omitempty"`  // optional - can be given by client
+	                                                 // will ne copied to viewports associated w/ this display
 }
 
 func pshell_read() []Display {
