@@ -292,6 +292,9 @@ function setup_stream_controls(fnordstream, streams) {
 	tbody.setAttribute('conn_id', conn_id);
 	let tbody_nodes      = adapt_nodes([tbody], conn_id);
 
+	tbody_nodes.streams_host_remove.addEventListener('click', (event) =>
+		fnordstream.websock.close());
+	tbody_nodes.streams_host_remove.hidden = fnordstream.primary;
 	tbody_nodes.streams_host.textContent = "@"+fnordstream.peer.match(/^[^:]+/)[0]+":";
 
 	const template = document.getElementById('stream-');
