@@ -1009,23 +1009,33 @@ function global_streamctl(ctl, val, exempt) {
 }
 
 function fnordstream_remove() {
-	// TBD: delete host from list in url_params
-	url_encode_params();
+	// delete host from list in url_params
+	const host = this.host;
+	const port = this.port;
+	global.url_params.add_hosts??=[];
+	const len_pre = global.url_params.add_hosts.length;
+	global.url_params.add_hosts = global.url_params.add_hosts.filter( v =>
+		!((v == host+":"+port) || ((v==host)&&(port==8090))) );
+	if(global.url_params.add_hosts.length != len_pre)
+		url_encode_params();
 	this.websock.close();
 }
 
 function add_connection(dst, add_to_url) {
-  //let port = dst.match(/((?::))(?:[0-9]+)$/);
-  //console.log(port);
-  dst += dst.search(":")<0 ? ":8090" : "";
-  if (fnordstream_by_peer[dst]) return; // check for duplicate connections
+  const port_match = dst.match(/((?::))(?:[0-9]+)$/);
+  const host = port_match ? dst.substring(0,port_match.index) : dst;
+  const port = port_match ? port_match[0].substring(1) : 8090;
+  const peer = host+":"+port;
+  if (fnordstream_by_peer[peer]) return; // check for duplicate connections
 
-  const websock = new WebSocket("ws://"+dst+"/ws");
+  const websock = new WebSocket("ws://"+peer+"/ws");
   let fnordstream = null;
 
   websock.addEventListener('open', (event) => {
 	fnordstream = {
-		peer           : dst,
+		host           : host,
+		port           : port,
+		peer           : peer,
 		websock        : websock,
 		conn_id        : conn_id,
 
@@ -1047,7 +1057,7 @@ function add_connection(dst, add_to_url) {
 		remove_streams  : remove_streams,
 	};
 	fnordstreams[conn_id++]  = fnordstream;
-	fnordstream_by_peer[dst] = fnordstream;
+	fnordstream_by_peer[peer] = fnordstream;
 	fnordstream.primary = fnordstream.conn_id == 0;
 	if(fnordstream.primary)
 		primary = fnordstream;
@@ -1064,10 +1074,18 @@ function add_connection(dst, add_to_url) {
 	]);
 
     document.getElementById('stream_urls').dispatchEvent(new Event("input"));
-    console.log("websock opened",fnordstream.conn_id,dst);
+    console.log("websock opened",fnordstream.conn_id,peer);
+
     if((add_to_url == false)||fnordstream.primary)
 		return;
-	// TBD: add to global.url_params.add_hosts if not yet in list, call url_encode_params
+
+	// add host to URL params if not yet in there
+	global.url_params.add_hosts??=[];
+	if( ((port==8090)&&(global.url_params.add_hosts.includes(host))) ||
+	    global.url_params.add_hosts.includes(host+":"+port) )
+	    return;
+	global.url_params.add_hosts.push(port==8090 ? host : host+":"+port);
+	url_encode_params();
   });
 
   websock.addEventListener('message', (evt) => {
@@ -1096,13 +1114,16 @@ function add_connection(dst, add_to_url) {
 	  global.update_displays();
 	  if(update_viewports)
 		request_viewports();
-	  console.log("websock closed", id,dst);
+	  console.log("websock closed", id,peer);
   });
 }
 
 function url_encode_params() {
-	const res = Object.entries(global.url_params).map(
-		([key, value]) => key+"="+array(value).join(",")).join(";");
+	// TBD: do not encode keys w/o values
+	const res = Object.entries(global.url_params).flatMap( ([key, value]) => {
+		const va = array(value);
+		return va.length > 0 ? key+"="+va.join(",") : null;
+	}).join(";");
 	let new_url = window.location.href.match(/^[^#]+/)[0];
 	new_url += res.length > 0 ? "#"+res : "";
 	window.history.replaceState(null, '', new_url);
@@ -1110,7 +1131,7 @@ function url_encode_params() {
 
 function url_decode_params() {
 	const hash = window.location.hash.match(/^#(.*)/);
-	if(!hash) return;
+	if(!hash) return [];
 	const parts = hash[1].split(';');
 	return parts.reduce( (res,p) => {
 		const [k,v] = p.split('=');
