@@ -62,8 +62,9 @@ let global           = {            // assembled data from individual fnordstrea
  */
 
 /* TODOs:
- * - postpone start_streams while viewports_notification pending
  * - probe_commands
+ * - error messages (unwanted websock close, etc.)
+ * - postpone start_streams while viewports_notification pending
  */
 
 function append_option(select,val,txt,selected) {
@@ -1027,9 +1028,15 @@ function add_connection(dst, add_to_url) {
   const port = port_match ? port_match[0].substring(1) : 8090;
   const peer = host+":"+port;
   if (fnordstream_by_peer[peer]) return; // check for duplicate connections
-
-  const websock = new WebSocket("ws://"+peer+"/ws");
   let fnordstream = null;
+  let websock = null;
+  try {
+	  websock = new WebSocket("ws://"+peer+"/ws");
+  }
+  catch(err) {
+	  console.log(err);
+	  return;
+  }
 
   websock.addEventListener('open', (event) => {
 	fnordstream = {
@@ -1119,11 +1126,11 @@ function add_connection(dst, add_to_url) {
 }
 
 function url_encode_params() {
-	// TBD: do not encode keys w/o values
 	const res = Object.entries(global.url_params).flatMap( ([key, value]) => {
+		if(value == null) return;
 		const va = array(value);
 		return va.length > 0 ? key+"="+va.join(",") : null;
-	}).join(";");
+	}).filter(v => v!=null).join(";");
 	let new_url = window.location.href.match(/^[^#]+/)[0];
 	new_url += res.length > 0 ? "#"+res : "";
 	window.history.replaceState(null, '', new_url);
