@@ -52,9 +52,9 @@ let global           = {            // assembled data from individual fnordstrea
  *    (These viewports have host_id set to the host_id of the display
  *     they're meant for. This host_id is the conn_id of the fnordstream
  *     instance they are meant for.)
- * 4.1) viewports_notification calls assign_viewports()
+ * 4.1) viewports_notification calls assign_streams()
  *
- * 5) assign_viewports:
+ * 5) assign_streams:
  * 5.1) - clears fnordstream.viewports for all fnordstream instances
  * 5.2) - reassigns global.viewports to fnordstream.viewports
  *        based on the host_id (=conn_id) of each viewport
@@ -156,7 +156,7 @@ function register_handlers() {
 	/* start streams */
 	const streams_start = document.getElementById('streams_start');
 	streams_start.addEventListener('click', (event) => {
-		const options = gather_options();
+		assign_streams(false); // (re)assign most recent stream locations list
 		streams_playing(true);
 		fnordstreams.forEach(v => {
 			if((!v.viewports)||(v.viewports.length<1)) return;
@@ -164,7 +164,7 @@ function register_handlers() {
 				request   : "start_streams",
 				streams   : v.stream_locations,
 				viewports : v.viewports,
-				options   : options
+				options   : gather_options(),
 			});
 		});
 	});
@@ -191,7 +191,7 @@ function register_handlers() {
 		if (profile_viewports_en.checked && selected_profile && (stream_profiles[selected_profile].viewports) &&
 			stream_profiles[selected_profile].viewports.length >= stream_profiles[selected_profile].stream_locations.length) {
 			global.viewports = stream_profiles[selected_profile].viewports;
-			assign_viewports();
+			assign_streams(true);
 		} else if (viewports_update)
 			request_viewports();
 		//console.log(stream_locations);
@@ -341,23 +341,26 @@ function setup_stream_controls(fnordstream, streams) {
 	fnordstream.streams_tbody = tbody;
 }
 
-// OK - assign global viewports to fnordstream instances
-function assign_viewports() {
-	// clear assigned viewports and streams first
+// OK - assign global streams & viewports to fnordstream instances
+function assign_streams(update_viewports) {
+	// clear assigned streams and viewports first
 	fnordstreams.forEach(v => {
-		v.viewports        = [];
 		v.stream_locations = [];
+		if(update_viewports != false)
+			v.viewports = [];
 	});
 	const viewports        = global.viewports;
 	const stream_locations = global.stream_locations;
 	// assign global.viewports and stream_location to fnordstream instances
 	viewports.forEach( (vp, idx) => {
+		const fnordstream     = fnordstreams[vp.host_id] || primary;
 		const stream_location = stream_locations[idx];
-		const fnordstream = fnordstreams[vp.host_id] || primary;
-		fnordstream.viewports.push(vp);
 		fnordstream.stream_locations.push(stream_location);
+		if(update_viewports != false)
+			fnordstream.viewports.push(vp);
 	});
-	draw_viewports();  // redraw viewports
+	if(update_viewports != false)
+		draw_viewports();  // redraw viewports
 }
 
 // OK
@@ -506,7 +509,7 @@ function request_viewports() {
 	// short-circuit requests for 0 streams
 	if(global.stream_locations.length<1) {
 		global.viewports = [];
-		assign_viewports();
+		assign_streams(true);
 		return;
 	}
 	primary.ws_send({
@@ -541,7 +544,7 @@ function viewports_notification(fnordstream, msg) {
 	if ((!v) || (v.length < 1))
 		v = [];
 	global.viewports = v;
-	assign_viewports();
+	assign_streams(true);
 }
 
 // OK
@@ -1027,9 +1030,11 @@ function add_connection(dst, add_to_url) {
   const host = port_match ? dst.substring(0,port_match.index) : dst;
   const port = port_match ? port_match[0].substring(1) : 8090;
   const peer = host+":"+port;
+
   if (fnordstream_by_peer[peer]) return; // check for duplicate connections
+
   let fnordstream = null;
-  let websock = null;
+  let websock     = null;
   try {
 	  websock = new WebSocket("ws://"+peer+"/ws");
   }
@@ -1037,6 +1042,8 @@ function add_connection(dst, add_to_url) {
 	  console.log(err);
 	  return;
   }
+
+  fnordstream_by_peer[peer] = true;
 
   websock.addEventListener('open', (event) => {
 	fnordstream = {
@@ -1063,7 +1070,7 @@ function add_connection(dst, add_to_url) {
 		remove_displays : remove_displays,
 		remove_streams  : remove_streams,
 	};
-	fnordstreams[conn_id++]  = fnordstream;
+	fnordstreams[conn_id++]   = fnordstream;
 	fnordstream_by_peer[peer] = fnordstream;
 	fnordstream.primary = fnordstream.conn_id == 0;
 	if(fnordstream.primary)
