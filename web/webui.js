@@ -300,7 +300,7 @@ function setup_stream_controls(fnordstream, streams) {
 	tbody_nodes.streams_host_remove.addEventListener('click', (event) =>
 		fnordstream.remove());
 	tbody_nodes.streams_host_remove.hidden = fnordstream.primary;
-	tbody_nodes.streams_host.textContent = "@"+fnordstream.peer.match(/^[^:]+/)[0]+":";
+	tbody_nodes.streams_host.textContent = "@"+fnordstream.host+":";
 
 	const template = document.getElementById('stream-');
 	const ext      = conn_id+".";
