@@ -797,7 +797,7 @@ function commands_probed(fnordstream, msg) {
 	missing_optional = missing_optional.substring(2);
 
 	/* build status note */
-	const cmd_missing_alert = document.getElementById('cmd_missing_alert');
+	const cmd_status = document.getElementById('cmd_status');
 	const cmd_alert = (message, type) => {
 	  const wrapper = document.createElement('div');
 	  wrapper.innerHTML = [
@@ -808,7 +808,7 @@ function commands_probed(fnordstream, msg) {
 		'   <button type="button" class="btn btn-secondary btn-sm" id="commands_details" data-bs-toggle="modal" data-bs-target="#cmds_modal"><i class="bi bi-list-columns-reverse"></i>&nbsp;Details</button>',
 		'</div>'
 	  ].join('');
-	  cmd_missing_alert.replaceChildren(wrapper);
+	  cmd_status.replaceChildren(wrapper);
 	}
 	let alert_type = 'success';
 	let alert_msg = "All required &amp; optional commands found.";
@@ -859,9 +859,7 @@ function commands_probed(fnordstream, msg) {
 	}
 
 	function refresh_cmds() {
-		if(!ws)
-			return;
-		ws.send(JSON.stringify({request : "probe_commands"}));
+		fnordstream.ws_send({request : "probe_commands"});
 		commands_refresh.disabled = true;
 		commands_refresh2.disabled = true;
 		cmd_refresh_busy.hidden = false;
