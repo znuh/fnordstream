@@ -946,8 +946,8 @@ function remove_displays() {
 
 // OK
 function create_displays(fnordstream) {
-	const server  = fnordstream.peer.split(":")[0];
 	const conn_id = fnordstream.conn_id;
+	const server  = fnordstream.host;
 	let template  = document.getElementById('display_table-');
 	let parent    = template.parentNode;
 
