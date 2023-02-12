@@ -1,4 +1,6 @@
 
+const default_port = 8090;
+
 let stream_profiles  = {};
 let selected_profile = null;
 
@@ -1019,7 +1021,7 @@ function fnordstream_remove() {
 	global.url_params.add_hosts??=[];
 	const len_pre = global.url_params.add_hosts.length;
 	global.url_params.add_hosts = global.url_params.add_hosts.filter( v =>
-		!((v == host+":"+port) || ((v==host)&&(port==8090))) );
+		!((v == host+":"+port) || ((v==host)&&(port==default_port))) );
 	if(global.url_params.add_hosts.length != len_pre)
 		url_encode_params();
 	this.websock.close();
@@ -1028,7 +1030,7 @@ function fnordstream_remove() {
 function add_connection(dst, add_to_url) {
   const port_match = dst.match(/((?::))(?:[0-9]+)$/);
   const host = port_match ? dst.substring(0,port_match.index) : dst;
-  const port = port_match ? port_match[0].substring(1) : 8090;
+  const port = port_match ? port_match[0].substring(1) : default_port;
   const peer = host+":"+port;
 
   if (fnordstream_by_peer[peer]) return; // check for duplicate connections
@@ -1095,10 +1097,10 @@ function add_connection(dst, add_to_url) {
 
 	// add host to URL params if not yet in there
 	global.url_params.add_hosts??=[];
-	if( ((port==8090)&&(global.url_params.add_hosts.includes(host))) ||
+	if( ((port==default_port)&&(global.url_params.add_hosts.includes(host))) ||
 	    global.url_params.add_hosts.includes(host+":"+port) )
 	    return;
-	global.url_params.add_hosts.push(port==8090 ? host : host+":"+port);
+	global.url_params.add_hosts.push(port==default_port ? host : host+":"+port);
 	url_encode_params();
   });
 
