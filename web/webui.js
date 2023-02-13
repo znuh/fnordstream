@@ -773,6 +773,7 @@ function commands_probed(fnordstream, msg) {
 		return;
 
 	/* disable/enable use_streamlink switch */
+	// TODO: iterate over all fnordstream instances
 	const use_streamlink = document.getElementById('use_streamlink');
 	use_streamlink.disabled = results["streamlink"].exit_code != 0;
 	const streamlink_note = document.getElementById('streamlink_note');
