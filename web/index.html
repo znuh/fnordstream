@@ -186,7 +186,14 @@
           </div>
         </div>
       </div>
-      <div id="cmd_status"></div>
+      <div id="cmd_status">
+		  <div class="alert" role="alert" id="cmds_alert-" hidden> <!-- cmd_status alert template -->
+			<div><b id="cmds_alert_host-"></b>&nbsp;<span id="cmds_alert_msg-"></span></div>
+			<div class="spinner-border spinner-border-sm" role="status" id="cmd_refresh_busy-" hidden><span class="visually-hidden">Loading...</span></div>
+			<button type="button" class="btn btn-secondary btn-sm" id="commands_refresh-"><i class="bi bi-arrow-clockwise"></i>&nbsp;Refresh</button>
+			<button type="button" class="btn btn-secondary btn-sm" id="commands_details-" data-bs-toggle="modal" data-bs-target="#cmds_modal"><i class="bi bi-list-columns-reverse"></i>&nbsp;Details</button>
+		  </div>
+	  </div>
     </div><!-- tab-pane -->
     <div class="tab-pane fade" id="control" role="tabpanel" aria-labelledby="control-tab" style="max-width: 700px;">
 		<table hidden> <!-- dummy table for streams tbody template -->

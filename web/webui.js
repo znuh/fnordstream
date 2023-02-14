@@ -772,6 +772,8 @@ function commands_probed(fnordstream, msg) {
 	if ((!results) || (results.length < 1))
 		return;
 
+	const conn_id = fnordstream.conn_id;
+
 	/* disable/enable use_streamlink switch */
 	// TODO: iterate over all fnordstream instances
 	const use_streamlink = document.getElementById('use_streamlink');
@@ -799,18 +801,11 @@ function commands_probed(fnordstream, msg) {
 
 	/* build status note */
 	const cmd_status = document.getElementById('cmd_status');
-	const cmd_alert = (message, type) => {
-	  const wrapper = document.createElement('div');
-	  wrapper.innerHTML = [
-		`<div class="alert alert-${type}" role="alert">`,
-		`   <div>${message}</div>`,
-		'   <div class="spinner-border spinner-border-sm" role="status" id="cmd_refresh_busy" hidden><span class="visually-hidden">Loading...</span></div>',
-		'   <button type="button" class="btn btn-secondary btn-sm" id="commands_refresh"><i class="bi bi-arrow-clockwise"></i>&nbsp;Refresh</button>',
-		'   <button type="button" class="btn btn-secondary btn-sm" id="commands_details" data-bs-toggle="modal" data-bs-target="#cmds_modal"><i class="bi bi-list-columns-reverse"></i>&nbsp;Details</button>',
-		'</div>'
-	  ].join('');
-	  cmd_status.replaceChildren(wrapper);
-	}
+	const template   = document.getElementById('cmds_alert-');
+	const alert      = template.cloneNode(true);
+	let   nodes      = adapt_nodes([alert], conn_id);
+	alert.hidden     = false;
+
 	let alert_type = 'success';
 	let alert_msg = "All required &amp; optional commands found.";
 	if (missing_required.length > 0) {
@@ -825,10 +820,18 @@ function commands_probed(fnordstream, msg) {
 		else
 			alert_msg += "Optional commands failed: " + missing_optional;
 	}
-	cmd_alert(alert_msg, alert_type);
+	nodes.cmds_alert.classList.add("alert-"+alert_type);
+	nodes.cmds_alert_host.textContent = "@"+fnordstream.host+":";
+	nodes.cmds_alert_msg.innerHTML    = alert_msg;
+
+	if(!fnordstream.cmds_alert)
+		cmd_status.appendChild(alert);
+	else
+		fnordstream.cmds_alert.replaceWith(alert);
+	fnordstream.cmds_alert = alert;
 
 	/* button handlers for status note */
-	const commands_refresh = document.getElementById('commands_refresh');
+	const commands_refresh = nodes.commands_refresh;
 	commands_refresh.disabled = false;
 	if (!commands_refresh.getAttribute('click_attached')) {
 		commands_refresh.addEventListener('click', refresh_cmds);
@@ -863,7 +866,7 @@ function commands_probed(fnordstream, msg) {
 		fnordstream.ws_send({request : "probe_commands"});
 		commands_refresh.disabled = true;
 		commands_refresh2.disabled = true;
-		cmd_refresh_busy.hidden = false;
+		nodes.cmd_refresh_busy.hidden = false;
 		cmd_refresh_busy2.hidden = false;
 	}
 
@@ -1067,6 +1070,8 @@ function add_connection(dst, add_to_url) {
 
 		streams_tbody  : undefined,  // tbody in streams table
 		stream_nodes   : undefined,  // control/indicator nodes for streams
+
+		cmds_alert     : undefined,  // alert box for missing commands
 
 		remove_displays : remove_displays,
 		remove_streams  : remove_streams,
