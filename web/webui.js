@@ -1144,6 +1144,7 @@ function add_connection(dst, add_to_url) {
 		  fnordstreams.cmds_alert.replaceChildren();
 		  fnordstreams.cmds_alert.remove();
 		  fnordstreams.cmds_alert = undefined;
+		  // TODO: update streamview dependency
 	  }
 	  // TODO: cleanup commands modal if active
 	  const id = fnordstream.conn_id;
