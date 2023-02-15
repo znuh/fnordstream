@@ -765,22 +765,29 @@ function populate_cmds_table(cmds) {
 // TBD
 let cmd_modal = undefined;
 
-// TBD
+// TBD: modal for command details table
 function commands_probed(fnordstream, msg) {
 
 	const results = msg.payload;
 	if ((!results) || (results.length < 1))
 		return;
 
+	fnordstream.cmds_info = results;
+
 	const conn_id = fnordstream.conn_id;
 
 	/* disable/enable use_streamlink switch */
-	// TODO: iterate over all fnordstream instances
-	const use_streamlink = document.getElementById('use_streamlink');
-	use_streamlink.disabled = results["streamlink"].exit_code != 0;
-	const streamlink_note = document.getElementById('streamlink_note');
-	streamlink_note.textContent = (results["streamlink"].exit_code != 0) ?
-		"No working streamlink found." : "";
+	const use_streamlink   = document.getElementById('use_streamlink');
+	const streamlink_note  = document.getElementById('streamlink_note');
+	// iterate over all fnordstream instances, look out for missing streamlink
+	let missing_streamlink = fnordstreams.find(f =>
+		(f.cmds_info) &&
+		((!f.cmds_info["streamlink"]) || (f.cmds_info["streamlink"].exit_code != 0))
+	);
+	// disable streamlink option if missing on any host
+	use_streamlink.disabled     = missing_streamlink != undefined;
+	streamlink_note.textContent = missing_streamlink ?
+		"No working streamlink found on "+missing_streamlink.host+"." : "";
 
 	/* walk through list to check mandatory & optional commands */
 	let missing_required = "";
@@ -838,20 +845,22 @@ function commands_probed(fnordstream, msg) {
 		commands_refresh.setAttribute('click_attached', 'true');
 	}
 
+/*
 	const commands_refresh2 = document.getElementById('commands_refresh2');
 	commands_refresh2.disabled = false;
 	if (!commands_refresh2.getAttribute('click_attached')) {
 		commands_refresh2.addEventListener('click', refresh_cmds);
 		commands_refresh2.setAttribute('click_attached', 'true');
 	}
+*/
 
-	const cmd_refresh_busy = document.getElementById('cmd_refresh_busy');
-	const cmd_refresh_busy2 = document.getElementById('cmd_refresh_busy2');
-	cmd_refresh_busy2.hidden = true;
+	const cmd_refresh_busy = nodes.cmd_refresh_busy;
+//	const cmd_refresh_busy2 = document.getElementById('cmd_refresh_busy2');
+//	cmd_refresh_busy2.hidden = true;
 
 	const req_missing = document.getElementById('req_missing');
 	req_missing.hidden = !(missing_required.length > 0);
-
+/*
 	const close_btn1 = document.getElementById('cmd_modal_close1');
 	const close_btn2 = document.getElementById('cmd_modal_close2');
 	close_btn1.disabled = missing_required.length > 0;
@@ -861,16 +870,16 @@ function commands_probed(fnordstream, msg) {
 		cmd_modal = cmd_modal || new bootstrap.Modal(document.getElementById('cmds_modal'))
 		cmd_modal.show();
 	}
-
+*/
 	function refresh_cmds() {
 		fnordstream.ws_send({request : "probe_commands"});
 		commands_refresh.disabled = true;
-		commands_refresh2.disabled = true;
+		//commands_refresh2.disabled = true;
 		nodes.cmd_refresh_busy.hidden = false;
-		cmd_refresh_busy2.hidden = false;
+		//cmd_refresh_busy2.hidden = false;
 	}
 
-	populate_cmds_table(results);
+	//populate_cmds_table(results);
 }
 
 // OK
@@ -1071,6 +1080,7 @@ function add_connection(dst, add_to_url) {
 		streams_tbody  : undefined,  // tbody in streams table
 		stream_nodes   : undefined,  // control/indicator nodes for streams
 
+		cmds_info      : undefined,  // list of required/missing commands
 		cmds_alert     : undefined,  // alert box for missing commands
 
 		remove_displays : remove_displays,
