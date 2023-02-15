@@ -721,7 +721,9 @@ function mklink(ref) {
 }
 
 // TBD
-function populate_cmds_table(cmds) {
+function populate_cmds_table(fnordstream) {
+	const cmds   = fnordstream.cmds_info;
+	const host   = fnordstream.host;
 	let template = document.getElementById('cmd-');
 	let parent   = template.parentNode;
 	parent.replaceChildren(template);
@@ -844,6 +846,9 @@ function commands_probed(fnordstream, msg) {
 		commands_refresh.addEventListener('click', refresh_cmds);
 		commands_refresh.setAttribute('click_attached', 'true');
 	}
+
+	nodes.commands_details.addEventListener('click', evt =>
+		populate_cmds_table(fnordstream));
 
 /*
 	const commands_refresh2 = document.getElementById('commands_refresh2');
@@ -1135,7 +1140,12 @@ function add_connection(dst, add_to_url) {
 	  // cleanup nodes
 	  fnordstream.remove_displays();
 	  fnordstream.remove_streams();
-	  // TODO: cleanup commands-probed nodes
+	  if(fnordstream.cmds_alert) {
+		  fnordstreams.cmds_alert.replaceChildren();
+		  fnordstreams.cmds_alert.remove();
+		  fnordstreams.cmds_alert = undefined;
+	  }
+	  // TODO: cleanup commands modal if active
 	  const id = fnordstream.conn_id;
 	  const update_viewports = fnordstream.viewports && (fnordstream.viewports.length>0);
 	  delete(fnordstreams[id]);
