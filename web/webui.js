@@ -745,20 +745,12 @@ function populate_cmds_table(fnordstream) {
 
 		n.classList.add( (code == 0) ? "table-success" : (required ? "table-danger" : "table-warning"));
 
-		let required_node = replace_child(children,"cmd-required-",i);
-		required_node.textContent = required ? "required" : "optional";
-
-		let name_node = replace_child(children,"cmd-cmd-",i);
-		name_node.innerHTML = "<b>" + mklink(cmd_name) + "</b>";
-
-		let exitcode_node = replace_child(children,"cmd-exitcode-",i);
-		if (code)
-			exitcode_node.innerHTML = "<b>" + cmd.exit_code + "&#x2718;</b>";
-		else
-			exitcode_node.innerHTML = cmd.exit_code + "&#x2714;";
-
-		let output_node = replace_child(children,"cmd-output-",i);
-		output_node.textContent = cmd.error ? cmd.error : cmd.stdout;
+		const nodes = adapt_nodes(children, i);
+		nodes.cmd_required.textContent = required ? "required" : "optional";
+		nodes.cmd_cmd.innerHTML        = "<b>" + mklink(cmd_name) + "</b>";
+		nodes.cmd_exitcode.innerHTML   = code ?
+			"<b>" + cmd.exit_code + "&#x2718;</b>" : cmd.exit_code + "&#x2714;";
+		nodes.cmd_output.textContent   = cmd.error ? cmd.error : cmd.stdout;
 
 		parent.appendChild(n);
 	}
@@ -903,32 +895,6 @@ const ws_handlers = {
 	"player_event"   : player_event,
 	"player_status"  : player_status,
 };
-
-// TODO: remove
-function replace_child(list,id,ext) {
-	if ((!list) || (list.length < 1))
-		return;
-
-	let res = null;
-	for (let i=0;i<list.length;i++) {
-		let n = list[i];
-
-		// replace for-tags as well
-		if (n.attributes && n.attributes["for"] && (n.attributes["for"].value == id)) {
-			n.attributes["for"].value += ext;
-		}
-
-		if (n.id == id) {
-			n.id += ext;
-			res = n;
-		}
-
-		let res2 = replace_child(n.childNodes, id, ext);
-		if (res2)
-			res = res2;
-	}
-	return res;
-}
 
 // OK
 function adapt_nodes(nodelist, new_extension, node_table) {
