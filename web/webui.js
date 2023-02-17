@@ -760,9 +760,6 @@ function populate_cmds_table(fnordstream) {
 	}
 }
 
-// TBD
-let cmd_modal = undefined;
-
 // TBD: modal for command details table
 function commands_probed(fnordstream, msg) {
 
