@@ -163,12 +163,12 @@ function register_handlers() {
 	streams_start.addEventListener('click', (event) => {
 		assign_streams(false); // (re)assign most recent stream locations list
 		streams_playing(true);
-		fnordstreams.forEach(v => {
-			if((!v.viewports)||(v.viewports.length<1)) return;
-			v.ws_send({                         // send start to all fnordstream instances
+		fnordstreams.forEach(fs => {
+			if((!fs)||(!fs.viewports)||(fs.viewports.length<1)) return;
+			fs.ws_send({                         // send start to all fnordstream instances
 				request   : "start_streams",
-				streams   : v.stream_locations,
-				viewports : v.viewports,
+				streams   : fs.stream_locations,
+				viewports : fs.viewports,
 				options   : gather_options(),
 			});
 		});
@@ -212,7 +212,7 @@ function register_handlers() {
 
 	/* options */
 
-	const streamlink = document.getElementById('use_streamlink');
+	const streamlink   = document.getElementById('use_streamlink');
 	const twitch_noads = document.getElementById('twitch-disable-ads');
 
 	streamlink.addEventListener('change', (event) => {
@@ -220,7 +220,7 @@ function register_handlers() {
 		twitch_noads.disabled = false;
 	  } else {
 		twitch_noads.disabled = true;
-		twitch_noads.checked = false;
+		twitch_noads.checked  = false;
 	  }
 	})
 
@@ -355,10 +355,10 @@ function setup_stream_controls(fnordstream, streams) {
 // OK - assign global streams & viewports to fnordstream instances
 function assign_streams(update_viewports) {
 	// clear assigned streams and viewports first
-	fnordstreams.forEach(v => {
-		v.stream_locations = [];
+	fnordstreams.forEach(fs => {
+		fs.stream_locations = [];
 		if(update_viewports != false)
-			v.viewports = [];
+			fs.viewports = [];
 	});
 	const viewports        = global.viewports;
 	const stream_locations = global.stream_locations;
@@ -378,7 +378,7 @@ function assign_streams(update_viewports) {
 function draw_viewports(fnordstream) {
 	/* redraw all if not specified */
 	if (!fnordstream) {
-		fnordstreams.forEach(v => v.peer ? draw_viewports(v) : null);
+		fnordstreams.forEach(fs => fs.peer ? draw_viewports(fs) : null);
 		return;
 	}
 	const viewports = fnordstream.viewports;
@@ -412,7 +412,7 @@ function draw_viewports(fnordstream) {
 function draw_displays(fnordstream) {
 	/* redraw all if not specified */
 	if (!fnordstream) {
-		fnordstreams.forEach(v => v.peer ? draw_displays(v) : null);
+		fnordstreams.forEach(fs => fs.peer ? draw_displays(fs) : null);
 		return;
 	}
 	const lightmode = document.getElementById('lightSwitch').checked;
@@ -541,7 +541,7 @@ function displays_notification(fnordstream, msg) {
 	}
 	const conn_id = fnordstream.conn_id;
 	if(conn_id>0)
-		v.forEach(v => v.host_id = conn_id);  // add host_id to displays
+		v.forEach(disp => disp.host_id = conn_id);  // add host_id to displays
 	fnordstream.displays = v;
 	global.update_displays();
 	update_displays_table(fnordstream);
@@ -781,9 +781,9 @@ function update_streamlink_availability() {
 	const use_streamlink   = document.getElementById('use_streamlink');
 	const streamlink_note  = document.getElementById('streamlink_note');
 	// iterate over all fnordstream instances, look out for missing streamlink
-	let missing_streamlink = fnordstreams.find(f =>
-		(f) && (f.cmds_info) &&
-		((!f.cmds_info["streamlink"]) || (f.cmds_info["streamlink"].exit_code != 0))
+	let missing_streamlink = fnordstreams.find(fs =>
+		(fs) && (fs.cmds_info) &&
+		((!fs.cmds_info["streamlink"]) || (fs.cmds_info["streamlink"].exit_code != 0))
 	);
 	// disable streamlink option if missing on any host
 	use_streamlink.disabled     = missing_streamlink != undefined;
@@ -974,7 +974,6 @@ function create_displays(fnordstream) {
 	fnordstream.display_table = n;
 
 	parent.appendChild(n);
-	//nodes.refresh_displays.dispatchEvent(new Event("click"));
 }
 
 // OK
@@ -983,7 +982,7 @@ function ws_send(requests, exempt) {
 	const buf = requests.reduce((res,v) => v ? res+JSON.stringify(v) : res, "");
 	if(buf.length<=2) return;
 	if(this == global)
-		fnordstreams.forEach(v => (v == exempt) || v.websock.send(buf));
+		fnordstreams.forEach(fs => (fs == exempt) || fs.websock.send(buf));
 	else
 		this.websock.send(buf);
 }
@@ -1124,7 +1123,7 @@ function add_connection(dst, add_to_url) {
 
   websock.addEventListener('close', (event) => {
 	  delete(fnordstream_by_peer[peer]);
-	  console.log("websock closed", peer, event.wasClean, event.reason, event);
+	  console.log("websock closed", peer, event.wasClean, event.code, event.reason);
 	  if(!fnordstream) return;
 	  // cleanup nodes
 	  fnordstream.remove_displays();
