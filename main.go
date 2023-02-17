@@ -6,7 +6,6 @@ import (
 )
 
 /* TODOs:
- * - web: auto-trigger cmds_modal on missing command?
  * - web: add/show error messages (toasts)
  * - auto-sync for stream buffers
  *

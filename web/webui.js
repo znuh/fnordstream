@@ -68,6 +68,7 @@ let global           = {            // assembled data from individual fnordstrea
 /* TODOs:
  * - fix id="display_info-" class="bi bi-info-circle-fill"
  * - error messages (unwanted websock close, etc.)
+ * - show missing commands warning near hostname?
  * - postpone start_streams while viewports_notification pending
  */
 
@@ -816,9 +817,6 @@ function commands_probed(fnordstream, msg) {
 	if ((!results) || (results.length < 1))
 		return;
 
-	fnordstream.cmds_info = results;
-	update_streamlink_availability();
-
 	const conn_id = fnordstream.conn_id;
 
 	/* walk through list to check mandatory & optional commands */
@@ -878,8 +876,19 @@ function commands_probed(fnordstream, msg) {
 	nodes.commands_details.addEventListener('click', evt =>
 		update_cmds_table(fnordstream, missing_required));
 
+	// show modal if commands missing in 1st reply from primary connection
+	const show_modal = fnordstream.primary && (!fnordstream.cmds_info) &&
+		(!global.cmds_modal) && (missing_required.length > 0);
+
+	fnordstream.cmds_info = results;
+	update_streamlink_availability();
+
 	// modal active for current fnordstream instance?
-	if(global.cmds_modal != fnordstream)
+	if(show_modal) {
+		const modal = bootstrap.Modal.getOrCreateInstance("#cmds_modal");
+		modal?.show();
+	}
+	else if(global.cmds_modal != fnordstream)
 		return;
 
 	// update modal (refresh no longer busy)
@@ -1115,7 +1124,7 @@ function add_connection(dst, add_to_url) {
 
   websock.addEventListener('close', (event) => {
 	  delete(fnordstream_by_peer[peer]);
-	  console.log("websock closed", peer);
+	  console.log("websock closed", peer, event.wasClean, event.reason, event);
 	  if(!fnordstream) return;
 	  // cleanup nodes
 	  fnordstream.remove_displays();
@@ -1134,8 +1143,7 @@ function add_connection(dst, add_to_url) {
 	  // close cmds modal if active
 	  if(fnordstream == global.cmds_modal) {
 		  const modal = bootstrap.Modal.getInstance("#cmds_modal");
-		  if(modal)
-			modal.hide();
+		  modal?.hide();
 		  global.cmds_modal = null;
 	  }
 	  const id = fnordstream.conn_id;
