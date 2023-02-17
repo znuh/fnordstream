@@ -66,7 +66,7 @@ let global           = {            // assembled data from individual fnordstrea
  */
 
 /* TODOs:
- * - probe_commands
+ * - fix id="display_info-" class="bi bi-info-circle-fill"
  * - error messages (unwanted websock close, etc.)
  * - postpone start_streams while viewports_notification pending
  */
@@ -792,6 +792,7 @@ function update_streamlink_availability() {
 
 // OK
 function refresh_cmds(fnordstream) {
+	if(!fnordstream) return;
 	fnordstream.ws_send({request : "probe_commands"});
 
 	const nodes = fnordstream.cmds_alert_nodes;
@@ -1132,7 +1133,9 @@ function add_connection(dst, add_to_url) {
 	  }
 	  // close cmds modal if active
 	  if(fnordstream == global.cmds_modal) {
-		  // TODO: cleanup commands modal if active
+		  const modal = bootstrap.Modal.getInstance("#cmds_modal");
+		  if(modal)
+			modal.hide();
 		  global.cmds_modal = null;
 	  }
 	  const id = fnordstream.conn_id;
@@ -1143,6 +1146,11 @@ function add_connection(dst, add_to_url) {
 	  if(update_viewports)
 		request_viewports();
   });
+  /*
+  websock.addEventListener('error', (event) => {
+	 console.log("ws error",peer,event);
+  });
+  */
 }
 
 function url_encode_params() {

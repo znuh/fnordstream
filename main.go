@@ -6,11 +6,12 @@ import (
 )
 
 /* TODOs:
+ * - web: auto-trigger cmds_modal on missing command?
+ * - web: add/show error messages (toasts)
  * - auto-sync for stream buffers
  *
  * - go: OSX monitor detection
  * - layout customisation
- * - web: add support for remote displays?
  */
 func main() {
 	fmt.Println("fnordstream v"+version_info)
