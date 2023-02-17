@@ -264,6 +264,7 @@ func stop_streams(hub *StreamHub, client *Client, request map[string]interface {
 
 func global_status(hub *StreamHub, client *Client, request map[string]interface {}) {
 	note := map[string]interface{}{
+		"os"      : runtime.GOOS,
 		"version" : version_info,
 		"playing" : hub.streams_playing,
 	}
