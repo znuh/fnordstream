@@ -760,6 +760,21 @@ function populate_cmds_table(fnordstream) {
 	}
 }
 
+function update_streamlink_availability() {
+	/* disable/enable use_streamlink switch */
+	const use_streamlink   = document.getElementById('use_streamlink');
+	const streamlink_note  = document.getElementById('streamlink_note');
+	// iterate over all fnordstream instances, look out for missing streamlink
+	let missing_streamlink = fnordstreams.find(f =>
+		(f) && (f.cmds_info) &&
+		((!f.cmds_info["streamlink"]) || (f.cmds_info["streamlink"].exit_code != 0))
+	);
+	// disable streamlink option if missing on any host
+	use_streamlink.disabled     = missing_streamlink != undefined;
+	streamlink_note.textContent = missing_streamlink ?
+		"No working streamlink found on "+missing_streamlink.host+"." : "";
+}
+
 // TBD: modal for command details table
 function commands_probed(fnordstream, msg) {
 
@@ -768,21 +783,9 @@ function commands_probed(fnordstream, msg) {
 		return;
 
 	fnordstream.cmds_info = results;
+	update_streamlink_availability();
 
 	const conn_id = fnordstream.conn_id;
-
-	/* disable/enable use_streamlink switch */
-	const use_streamlink   = document.getElementById('use_streamlink');
-	const streamlink_note  = document.getElementById('streamlink_note');
-	// iterate over all fnordstream instances, look out for missing streamlink
-	let missing_streamlink = fnordstreams.find(f =>
-		(f.cmds_info) &&
-		((!f.cmds_info["streamlink"]) || (f.cmds_info["streamlink"].exit_code != 0))
-	);
-	// disable streamlink option if missing on any host
-	use_streamlink.disabled     = missing_streamlink != undefined;
-	streamlink_note.textContent = missing_streamlink ?
-		"No working streamlink found on "+missing_streamlink.host+"." : "";
 
 	/* walk through list to check mandatory & optional commands */
 	let missing_required = "";
@@ -1111,7 +1114,10 @@ function add_connection(dst, add_to_url) {
 		  fnordstream.cmds_alert.replaceChildren();
 		  fnordstream.cmds_alert.remove();
 		  fnordstream.cmds_alert = undefined;
-		  // TODO: update streamview dependency
+	  }
+	  if(fnordstream.cmds_info) {
+		fnordstream.cmds_info  = undefined;
+		update_streamlink_availability();
 	  }
 	  // TODO: cleanup commands modal if active
 	  const id = fnordstream.conn_id;
