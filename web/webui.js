@@ -1108,9 +1108,9 @@ function add_connection(dst, add_to_url) {
 	  fnordstream.remove_displays();
 	  fnordstream.remove_streams();
 	  if(fnordstream.cmds_alert) {
-		  fnordstreams.cmds_alert.replaceChildren();
-		  fnordstreams.cmds_alert.remove();
-		  fnordstreams.cmds_alert = undefined;
+		  fnordstream.cmds_alert.replaceChildren();
+		  fnordstream.cmds_alert.remove();
+		  fnordstream.cmds_alert = undefined;
 		  // TODO: update streamview dependency
 	  }
 	  // TODO: cleanup commands modal if active
