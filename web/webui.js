@@ -4,8 +4,6 @@ const default_port = 8090;
 let stream_profiles  = {};
 let selected_profile = null;
 
-let tooltipList      = undefined;
-
 let conn_id              = 0;      // connection id counter - increments on connection open
 let fnordstreams         = [];     // fnordstreams instances (connections to servers, etc.) by conn_id
 let fnordstream_by_peer  = [];     // fnordstream instances by peer
@@ -66,7 +64,6 @@ let global           = {            // assembled data from individual fnordstrea
  */
 
 /* TODOs:
- * - fix id="display_info-" class="bi bi-info-circle-fill"
  * - error messages (unwanted websock close, etc.)
  * - show missing commands warning near hostname?
  * - postpone start_streams while viewports_notification pending
@@ -270,17 +267,14 @@ function register_handlers() {
 
 	const tooltips_en = document.getElementById('tooltips_enable');
 	tooltips_en.addEventListener('change', (event) => {
-	  if (!tooltipList) {
-		const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
-		// TODO: FIXME id="display_info-" class="bi bi-info-circle-fill"
-		tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl =>
-			tooltipTriggerEl.id != "display-resolution-info" ? new bootstrap.Tooltip(tooltipTriggerEl) : null);
-	  }
-	  if (event.currentTarget.checked)
-		tooltipList.forEach(tt => tt ? tt.enable() : null);
-	  else
-		tooltipList.forEach(tt => tt ? tt.disable() : null);
-	})
+		const en = event.currentTarget.checked;
+		const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]:not([id^=display_info])');
+		[...tooltipTriggerList].forEach(elem => {
+			const tt = bootstrap.Tooltip.getOrCreateInstance(elem);
+			if(!tt) return;
+			en ? tt.enable() : tt.disable();
+		}); // foreach tooltip DOM element (except for display infos)
+	}); // tooltips_enable.change
 }
 
 // OK
@@ -1153,11 +1147,6 @@ function add_connection(dst, add_to_url) {
 	  if(update_viewports)
 		request_viewports();
   });
-  /*
-  websock.addEventListener('error', (event) => {
-	 console.log("ws error",peer,event);
-  });
-  */
 }
 
 function url_encode_params() {
