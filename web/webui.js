@@ -720,24 +720,28 @@ function mklink(ref) {
 	return refs[ref] ? ('<a href="'+refs[ref]+'">'+ref+'</a>') : ref;
 }
 
-// TBD
+// OK
 function populate_cmds_table(fnordstream) {
-	const cmds   = fnordstream.cmds_info;
-	const host   = fnordstream.host;
-	let template = document.getElementById('cmd-');
-	let parent   = template.parentNode;
+	const cmds     = fnordstream.cmds_info;
+	const host     = fnordstream.host;
+	const template = document.getElementById('cmd-');
+	const parent   = template.parentNode;
 	parent.replaceChildren(template);
+
+	const host_node       = document.getElementById('cmds_modal_host');
+	host_node.textContent = "/ @" + fnordstream.host;
 
 	const sorted = ["mpv", "yt-dlp", "streamlink", "xrandr"];
 
+	// populate commands table
 	for (let i=0;i<sorted.length;i++) {
-		let n = template.cloneNode(true);
-		let children = n.childNodes;
+		const n = template.cloneNode(true);
+		const children = n.childNodes;
 		n.id += i;
 		n.hidden = false;
 
-		let cmd_name = sorted[i];
-		let cmd = cmds[cmd_name];
+		const cmd_name = sorted[i];
+		const cmd      = cmds[cmd_name];
 		if (!cmd) continue;
 
 		const code     = parseInt(cmd.exit_code);
