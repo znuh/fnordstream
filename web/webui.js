@@ -30,6 +30,8 @@ let global           = {            // assembled data from individual fnordstrea
 		this.displays = fnordstreams.flatMap(v => v.displays);
 	},
 
+	cmds_modal      : undefined,    // fnordstream instance for cmds_modal - undefined if hidden
+
 	ws_send         : ws_send,
 	streamctl       : global_streamctl,
 };
@@ -238,6 +240,12 @@ function register_handlers() {
 		stream_urls.value = locs.join("\n") + "\n";
 		stream_urls.dispatchEvent(new Event("input"));
 	})
+
+	// commands info modal
+	const cmds_modal         = document.getElementById('cmds_modal');
+	cmds_modal.addEventListener('hide.bs.modal', ev => {global.cmds_modal = null});
+	const cmds_modal_refresh = document.getElementById('commands_refresh');
+	cmds_modal_refresh.addEventListener('click', ev => refresh_cmds(global.cmds_modal));
 
 	/* ********* control pane *************** */
 
@@ -710,6 +718,7 @@ const required_commands = {
 	"yt-dlp"     : true,
 };
 
+// OK
 function mklink(ref) {
 	const refs = {
 		"mpv"        : "https://mpv.io/installation/",
@@ -721,12 +730,14 @@ function mklink(ref) {
 }
 
 // OK
-function populate_cmds_table(fnordstream) {
+function update_cmds_table(fnordstream, missing_required) {
 	const cmds     = fnordstream.cmds_info;
 	const host     = fnordstream.host;
 	const template = document.getElementById('cmd-');
 	const parent   = template.parentNode;
 	parent.replaceChildren(template);
+
+	global.cmds_modal = fnordstream;
 
 	const host_node       = document.getElementById('cmds_modal_host');
 	host_node.textContent = "/ @" + fnordstream.host;
@@ -758,8 +769,12 @@ function populate_cmds_table(fnordstream) {
 
 		parent.appendChild(n);
 	}
+
+	const req_missing  = document.getElementById('req_missing');
+	req_missing.hidden = !(missing_required.length > 0);
 }
 
+// OK
 function update_streamlink_availability() {
 	/* disable/enable use_streamlink switch */
 	const use_streamlink   = document.getElementById('use_streamlink');
@@ -775,7 +790,25 @@ function update_streamlink_availability() {
 		"No working streamlink found on "+missing_streamlink.host+"." : "";
 }
 
-// TBD: modal for command details table
+// OK
+function refresh_cmds(fnordstream) {
+	fnordstream.ws_send({request : "probe_commands"});
+
+	const nodes = fnordstream.cmds_alert_nodes;
+	nodes.commands_refresh.disabled  = true;
+	nodes.cmd_refresh_busy.hidden    = false;
+
+	// modal active for current fnordstream instance?
+	if(global.cmds_modal != fnordstream)
+		return;
+
+	const refresh_busy   = document.getElementById('cmd_refresh_busy');
+	refresh_busy.hidden  = false;
+	const refresh_btn    = document.getElementById('commands_refresh');
+	refresh_btn.disabled = true;
+}
+
+// OK
 function commands_probed(fnordstream, msg) {
 
 	const results = msg.payload;
@@ -833,54 +866,27 @@ function commands_probed(fnordstream, msg) {
 		cmd_status.appendChild(alert);
 	else
 		fnordstream.cmds_alert.replaceWith(alert);
-	fnordstream.cmds_alert = alert;
+	fnordstream.cmds_alert       = alert;
+	fnordstream.cmds_alert_nodes = nodes;
 
-	/* button handlers for status note */
-	const commands_refresh = nodes.commands_refresh;
-	commands_refresh.disabled = false;
-	if (!commands_refresh.getAttribute('click_attached')) {
-		commands_refresh.addEventListener('click', refresh_cmds);
-		commands_refresh.setAttribute('click_attached', 'true');
-	}
+	// refresh button
+	nodes.commands_refresh.addEventListener('click', evt =>
+		refresh_cmds(fnordstream));
 
+	// details button -> update modal
 	nodes.commands_details.addEventListener('click', evt =>
-		populate_cmds_table(fnordstream));
+		update_cmds_table(fnordstream, missing_required));
 
-/*
-	const commands_refresh2 = document.getElementById('commands_refresh2');
-	commands_refresh2.disabled = false;
-	if (!commands_refresh2.getAttribute('click_attached')) {
-		commands_refresh2.addEventListener('click', refresh_cmds);
-		commands_refresh2.setAttribute('click_attached', 'true');
-	}
-*/
+	// modal active for current fnordstream instance?
+	if(global.cmds_modal != fnordstream)
+		return;
 
-	const cmd_refresh_busy = nodes.cmd_refresh_busy;
-//	const cmd_refresh_busy2 = document.getElementById('cmd_refresh_busy2');
-//	cmd_refresh_busy2.hidden = true;
-
-	const req_missing = document.getElementById('req_missing');
-	req_missing.hidden = !(missing_required.length > 0);
-/*
-	const close_btn1 = document.getElementById('cmd_modal_close1');
-	const close_btn2 = document.getElementById('cmd_modal_close2');
-	close_btn1.disabled = missing_required.length > 0;
-	close_btn2.disabled = missing_required.length > 0;
-
-	if (missing_required.length > 0) {
-		cmd_modal = cmd_modal || new bootstrap.Modal(document.getElementById('cmds_modal'))
-		cmd_modal.show();
-	}
-*/
-	function refresh_cmds() {
-		fnordstream.ws_send({request : "probe_commands"});
-		commands_refresh.disabled = true;
-		//commands_refresh2.disabled = true;
-		nodes.cmd_refresh_busy.hidden = false;
-		//cmd_refresh_busy2.hidden = false;
-	}
-
-	//populate_cmds_table(results);
+	// update modal (refresh no longer busy)
+	const refresh_busy   = document.getElementById('cmd_refresh_busy');
+	refresh_busy.hidden  = true;
+	const refresh_btn    = document.getElementById('commands_refresh');
+	refresh_btn.disabled = false;
+	update_cmds_table(fnordstream, missing_required);
 }
 
 // OK
@@ -1027,6 +1033,7 @@ function add_connection(dst, add_to_url) {
 	  websock = new WebSocket("ws://"+peer+"/ws");
   }
   catch(err) {
+	  delete(fnordstream_by_peer[fnordstream.peer]);
 	  console.log(err);
 	  return;
   }
@@ -1106,29 +1113,35 @@ function add_connection(dst, add_to_url) {
   });
 
   websock.addEventListener('close', (event) => {
+	  delete(fnordstream_by_peer[peer]);
+	  console.log("websock closed", peer);
 	  if(!fnordstream) return;
 	  // cleanup nodes
 	  fnordstream.remove_displays();
 	  fnordstream.remove_streams();
+	  // cleanup cmds_alert if present
 	  if(fnordstream.cmds_alert) {
 		  fnordstream.cmds_alert.replaceChildren();
 		  fnordstream.cmds_alert.remove();
 		  fnordstream.cmds_alert = undefined;
 	  }
+	  // update streamlink availability
 	  if(fnordstream.cmds_info) {
 		fnordstream.cmds_info  = undefined;
 		update_streamlink_availability();
 	  }
-	  // TODO: cleanup commands modal if active
+	  // close cmds modal if active
+	  if(fnordstream == global.cmds_modal) {
+		  // TODO: cleanup commands modal if active
+		  global.cmds_modal = null;
+	  }
 	  const id = fnordstream.conn_id;
 	  const update_viewports = fnordstream.viewports && (fnordstream.viewports.length>0);
 	  delete(fnordstreams[id]);
-	  delete(fnordstream_by_peer[fnordstream.peer]);
 	  fnordstream = undefined;
 	  global.update_displays();
 	  if(update_viewports)
 		request_viewports();
-	  console.log("websock closed", id,peer);
   });
 }
 
@@ -1156,8 +1169,8 @@ function url_decode_params() {
 }
 
 document.addEventListener("DOMContentLoaded", function() {
-  add_connection(window.location.host, false);
   register_handlers();
+  add_connection(window.location.host, false);
 
   // parse additional URL params (if any)
   global.url_params = url_decode_params();
