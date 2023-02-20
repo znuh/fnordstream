@@ -189,6 +189,9 @@ func (stream * Stream) run() {
 					mapstructure.Decode(player_evt.payload, &evt)
 					if evt.Event == "playback-restart" {
 						stream.send_status_note("playing", nil)
+					} else if (evt.Event == "property-change") && (evt.Name == "demuxer-cache-duration") {
+						dur, ok := evt.Data.(float64)
+						if ok { stream.buffer_duration(dur) }
 					}
 				} else {
 					stream.ipc_shutdown()
@@ -552,4 +555,8 @@ func player_observe_properties(conn *net.Conn) error {
 	(*conn).SetWriteDeadline(time.Now().Add(100 * time.Millisecond))
 	_, err := (*conn).Write(msg)
 	return err
+}
+
+func (stream *Stream) buffer_duration(dur float64) {
+	// TBD: min. buffered time over last n seconds
 }
