@@ -268,7 +268,7 @@ function register_handlers() {
 	const tooltips_en = document.getElementById('tooltips_enable');
 	tooltips_en.addEventListener('change', (event) => {
 		const en = event.currentTarget.checked;
-		const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]:not([id^=display_info])');
+		const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]:not([data-tt-persist="true"])');
 		[...tooltipTriggerList].forEach(elem => {
 			const tt = bootstrap.Tooltip.getOrCreateInstance(elem);
 			if(!tt) return;
