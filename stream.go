@@ -4,6 +4,7 @@ import (
 	"net"
 	"fmt"
 	"time"
+	"math"
 	"bufio"
 	"strings"
 	"regexp"
@@ -66,14 +67,9 @@ type StreamCtl struct {
 	val       string
 }
 
-type BufDuration struct {
-	duration     float64        // demuxer-cache-durations
-	ts           time.Time      // timestamp
-}
-
 type BufSync struct {
-	durations   []BufDuration
-	pos           int           // index for buffer/ts
+	min_duration    float64
+	start_ts        time.Time
 }
 
 type Stream struct {
@@ -205,6 +201,7 @@ func (stream * Stream) run() {
 					} else if (evt.Event == "property-change") && (evt.Name == "demuxer-cache-duration") {
 						dur, ok := evt.Data.(float64)
 						if ok { stream.buffer_duration(dur) }
+						// TODO: forward min. demuxer-cache-duration to client
 					}
 				} else {
 					stream.ipc_shutdown()
@@ -471,6 +468,8 @@ func (stream *Stream) ipc_start() (<-chan *Notification, error) {
 	stream.ipc_conn = ipc_conn
 	if err != nil { return nil, err }
 
+	stream.buf_sync.start_ts = time.Time{}
+
 	// TODO: move to goroutine?
 	err = player_observe_properties(&ipc_conn)
 	if err != nil {
@@ -485,7 +484,8 @@ func (stream *Stream) ipc_start() (<-chan *Notification, error) {
 	ipc_conn.SetWriteDeadline(time.Time{})
 	notes := make(chan *Notification, 8)
 
-	/* abort if user requested stop/restart */
+	// abort if user requested stop/restart
+	// TODO: move before player_observe_properties ?
 	if stream.target_state != UR_Play {
 		stream.player_ctl(&StreamCtl{cmd:"quit"})
 		stream.ipc_shutdown()
@@ -570,12 +570,18 @@ func player_observe_properties(conn *net.Conn) error {
 	return err
 }
 
-func (stream *Stream) buffer_duration(dur float64) {
-	now := time.Now()
+func (stream *Stream) buffer_duration(current_duration float64) {
 	bs  := &stream.buf_sync
-	fmt.Println(now,dur)
-	if(len(bs.durations) == 0) {
-		// make: 128 (~61 per 10secs)
+	now := time.Now()
+
+	if(!bs.start_ts.IsZero()) {
+		delta_t         := now.Sub(bs.start_ts).Minutes()
+		bs.min_duration  = math.Min(current_duration, bs.min_duration)
+		//fmt.Println(current_duration, bs.min_duration)
+		if(delta_t < 1.0) { return }
+		//fmt.Println("========")
+		fmt.Println("min buffer duration >=",bs.min_duration,"s")
 	}
-	// TBD: min. buffered time over last n seconds
+	bs.start_ts     = now
+	bs.min_duration = current_duration
 }
