@@ -66,6 +66,16 @@ type StreamCtl struct {
 	val       string
 }
 
+type BufDuration struct {
+	duration     float64        // demuxer-cache-durations
+	ts           time.Time      // timestamp
+}
+
+type BufSync struct {
+	durations   []BufDuration
+	pos           int           // index for buffer/ts
+}
+
 type Stream struct {
 	notifications            chan<- *Notification
 	stream_id                int
@@ -79,6 +89,9 @@ type Stream struct {
 	ctl_chan                 chan *StreamCtl
 	//shutdown                 chan struct{}
 	user_shutdown            bool
+
+	// synchronization stuff for buffer-duration
+	buf_sync                 BufSync
 
 	// Player stuff
 	player_cmd              *cmd.Cmd
@@ -558,5 +571,11 @@ func player_observe_properties(conn *net.Conn) error {
 }
 
 func (stream *Stream) buffer_duration(dur float64) {
+	now := time.Now()
+	bs  := &stream.buf_sync
+	fmt.Println(now,dur)
+	if(len(bs.durations) == 0) {
+		// make: 128 (~61 per 10secs)
+	}
 	// TBD: min. buffered time over last n seconds
 }
