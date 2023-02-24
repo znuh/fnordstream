@@ -200,9 +200,23 @@ func (stream * Stream) run() {
 						stream.send_status_note("playing", nil)
 					} else if (evt.Event == "property-change") && (evt.Name == "demuxer-cache-duration") {
 						dur, ok := evt.Data.(float64)
-						if ok { stream.buffer_duration(dur) }
-						// TODO: forward min. demuxer-cache-duration to client
-					}
+						if ok {
+							res := stream.buffer_duration(dur)
+							if(res >= 0.0) {
+								// forward min. demuxer-cache-duration to client
+								evt.Name     = "meta-min-demuxer-cache-duration"
+								evt.Data     = res
+								json_msg, _ := json.Marshal(evt)
+								note := &Notification{
+									stream_id    : stream.stream_id,
+									notification : "player_event",
+									payload      : evt,
+									json_message : json_msg,
+								}
+								stream.notifications <- note
+							} // value update
+						}
+					} // demuxer-cache-duration property changed
 				} else {
 					stream.ipc_shutdown()
 				}
@@ -570,7 +584,8 @@ func player_observe_properties(conn *net.Conn) error {
 	return err
 }
 
-func (stream *Stream) buffer_duration(current_duration float64) {
+func (stream *Stream) buffer_duration(current_duration float64) (res float64) {
+	res  = -1.0
 	bs  := &stream.buf_sync
 	now := time.Now()
 
@@ -579,9 +594,11 @@ func (stream *Stream) buffer_duration(current_duration float64) {
 		bs.min_duration  = math.Min(current_duration, bs.min_duration)
 		//fmt.Println(current_duration, bs.min_duration)
 		if(delta_t < 1.0) { return }
+		res              = bs.min_duration
 		//fmt.Println("========")
-		fmt.Println("min buffer duration >=",bs.min_duration,"s")
+		//fmt.Println("min buffer duration >=",bs.min_duration,"s")
 	}
 	bs.start_ts     = now
 	bs.min_duration = current_duration
+	return
 }

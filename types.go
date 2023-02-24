@@ -46,7 +46,7 @@ type PlayerStatus struct {
 }
 
 type PlayerEvent struct {
-	Event               string         `mapstructure:"event"`
-	Name                string         `mapstructure:"name"`
-	Data                interface{}    `mapstructure:"data"`
+	Event               string         `json:"event" mapstructure:"event"`
+	Name                string         `json:"name" mapstructure:"name"`
+	Data                interface{}    `json:"data" mapstructure:"data"`
 }

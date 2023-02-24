@@ -555,18 +555,18 @@ function viewports_notification(fnordstream, msg) {
 // OK
 function mpv_property_changed(fnordstream, property, stream_id) {
 	const property_map = { /* property -> node_name map */
-		"media-title"            : "stream_title",
-		"demuxer-cache-duration" : "stream_buffer",
-		"mute"                   : "stream_muting",
-		"volume"                 : "stream_volume",
-		"video-bitrate"          : "stream_vbr",
+		"media-title"                     : "stream_title",
+		"meta-min-demuxer-cache-duration" : "stream_buffer",
+		"mute"                            : "stream_muting",
+		"volume"                          : "stream_volume",
+		"video-bitrate"                   : "stream_vbr",
 	};
 	const update_funcs = { /* node_name -> update function map */
 		"stream_title"  : (n, v) => n.textContent = v,
 		"stream_buffer" : (n, v) => {
 				let str = Math.round(v*10)/10 + "";
 				str += (str.indexOf(".")>=0) ? "" : ".0";
-				n.textContent = "Buffer: " + str + "s";
+				n.textContent = "Buffer: ≥" + str + "s";
 			},
 		"stream_vbr" : (n, v) => {
 				let str = Math.round(v/100000)/10 + "";
