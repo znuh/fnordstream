@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"io/fs"
 	"net"
 	"net/url"
 	"net/http"
@@ -208,12 +209,25 @@ func webif_run(shub *StreamHub, listen_spec string, webui_acl string, allowed_or
 		fmt.Println("allowed origins:",list)
 	}
 
+	// serve embedded webfs or web/ directory?
+	var web_fs http.FileSystem
+	if(embedded_webfs_valid) {
+		fmt.Println("serving embedded webfs")
+		fsys       := fs.FS(embedded_webfs)
+		webdir, _  := fs.Sub(fsys, "web")
+		web_fs      = http.FS(webdir)
+	} else {
+		fmt.Println("serving web/ directory")
+		web_fs      = http.Dir("./web")
+	}
+
+	http.Handle("/", auth_wrap(http.FileServer(web_fs), cfg))
+	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+		serveWs(shub, w, r, cfg)   // websocket
+	})
+
 	fmt.Println("open this link in your browser: http://localhost:"+listen_port)
 
-	http.Handle("/", auth_wrap(http.FileServer(http.Dir("./web")), cfg))
-	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
-		serveWs(shub, w, r, cfg)
-	})
 	err = http.ListenAndServe(listen_addr, nil)
 	if err != nil {
 		log.Fatal("ListenAndServe: ", err)
