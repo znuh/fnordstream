@@ -14,16 +14,16 @@
 ![Streams playback](https://user-images.githubusercontent.com/198567/215343045-5aa71bbc-ccca-4573-aafe-654017a7c7eb.jpg)
 
 ## Usage
-* For normal web UI mode just start fnordstream and open http://localhost:8090 in your browser
+* For normal **web UI** mode just start fnordstream and open http://localhost:8090 in your browser
 * Use *fnordstream -h* for help
-* You can allow remote clients by changing the listen address with the **-listen-addr** option. (Default is localhost only.)<br>e.g. *fnordstream -listen-addr=:8090* will make fnordstream listen on ALL interfaces.
+* You can allow **remote clients** by changing the listen address with the **-listen-addr** option. (Default is localhost only.)<br>e.g. *fnordstream -listen-addr=:8090* will make fnordstream listen on ALL interfaces.
 * If you set the listen address to something other than localhost you **MUST** provide a comma separated whitelist of allowed clients with **-allowed-ips**. Web UI access will be restricted to clients given in this list.
 * **-allowed-ips** may contain single IPs, from-to ranges and IP ranges in CIDR notation.<br>
 e.g. *-allowed-ips=127.0.0.1,::1,192.168.1.0/24,192.168.2.3,192.168.3.1-192.168.3.23*
-* Console mode can be invoked by supplying a profile name or an extra file as last argument.<br>
+* **Console mode** can be invoked by supplying a profile name or an extra file as last argument.<br>
 e.g. *fnordstream Demo*
 * The web UI can be disabled with **-no-web** for console-only mode.
-* fnordstream supports multi-host mode. That means the web UI can distribute viewports/streams to different fnordstream hosts.<br>Fnordstream needs to run on all these hosts with appropriate **-allowed-ips=** configured for remote clients. Additionally, divergent websocket origins must be whitelisted - e.g. with *-allowed-origins=localhost:8090*
+* fnordstream supports **multi-host mode**. That means the web UI can distribute viewports/streams to different fnordstream hosts.<br>Fnordstream needs to run on all these hosts with appropriate **-allowed-ips=** configured for remote clients. Additionally, divergent websocket origins must be whitelisted - e.g. with *-allowed-origins=localhost:8090*
 
 ## console mode
 * You can either specify a profile name from the stream_profiles.json file (e.g. *fnordstream Demo*) or supply a simple list of streams with one URL per line.<br>Example: *echo -e "https://vimeo.com/640499893\nhttps://vimeo.com/325910798\nhttps://vimeo.com/1084537" | ./fnordstream -*
