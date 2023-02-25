@@ -23,7 +23,7 @@ e.g. *-allowed-ips=127.0.0.1,::1,192.168.1.0/24,192.168.2.3,192.168.3.1-192.168.
 * Console mode can be invoked by supplying a profile name or an extra file as last argument.<br>
 e.g. *fnordstream Demo*
 * The web UI can be disabled with **-no-web** for console-only mode.
-* fnordstream supports multi-host mode. That means the web UI can distribute viewports/streams to different fnordstream hosts.<br>Fnordstream needs to run on all these hosts with appropriate **-allowed-ips=** configured for remote clients. Additionally, divergent websocket origins must be whitelisted - e.g. with *-allowed-origins=localhost:8090*.
+* fnordstream supports multi-host mode. That means the web UI can distribute viewports/streams to different fnordstream hosts.<br>Fnordstream needs to run on all these hosts with appropriate **-allowed-ips=** configured for remote clients. Additionally, divergent websocket origins must be whitelisted - e.g. with *-allowed-origins=localhost:8090*
 
 ## console mode
 * You can either specify a profile name from the stream_profiles.json file (e.g. *fnordstream Demo*) or supply a simple list of streams with one URL per line.<br>Example: *echo -e "https://vimeo.com/640499893\nhttps://vimeo.com/325910798\nhttps://vimeo.com/1084537" | ./fnordstream -*
