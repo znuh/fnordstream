@@ -317,6 +317,7 @@ function setup_stream_controls(fnordstream, streams) {
 
 		nodes.stream_idx.textContent   = stream.viewport_id != undefined ? stream.viewport_id : i;
 		nodes.stream_title.textContent = url;
+		const buffer_info_tt = new bootstrap.Tooltip(nodes.stream_buffer_info);
 		nodes.stream_volume.addEventListener('input', (event) => {
 			const val = event.target.value;
 			fnordstream.streamctl(i,"volume",val);
