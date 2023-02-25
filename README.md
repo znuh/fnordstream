@@ -5,8 +5,8 @@
 **Note:** fnordstream is **NOT** a video player. It needs the [mpv player](https://mpv.io/) and [yt-dlp](https://github.com/yt-dlp/yt-dlp) (or [streamlink](https://streamlink.github.io/)) to work.
 
 * fnordstream has been tested on Linux and Windows. (For OSX display detection is not (yet) implemented.)
-* fnordstream comes with a web based user interface.
-* There's also a basic console mode which allows starting playback of streams playback without the web UI.<br>(Advanced features such as stopping, (re)starting streams and volume control are only available through the web UI. Web UI can still be used in console mode or disabled if not needed.)
+* fnordstream comes with a **web based user interface**.
+* There's also a basic **console mode** which allows starting playback of streams playback without the web UI.<br>(Advanced features such as stopping, (re)starting streams and volume control are only available through the web UI. Web UI can still be used in console mode or disabled if not needed.)
 * Communication between web UI and fnordstream is done through a websocket with JSON requests and replies.<br>(Basically you can put together your own tool to communicate with fnordstream through the websock. However at the moment there is no documentation for the JSON requests and responses so you have to inspect the communication in your browser and have a look at webui.js if you want to do this.)
 
 ## Screenshots
